@@ -4,16 +4,23 @@ from ultralytics import YOLO
 def main():
     print("Inicializando Sistema Wasser...")
 
-    # Caminhos dos files
-    MODEL_PATH = "models/yolov10x.pt"
-    VIDEO_PATH = "media/video.mp4"
+    MODEL_PATH   = "yolov26x.pt" 
+    VIDEO_PATH   = "media/video-teste-wasser.mp4"
     TRACKER_PATH = "wasser_tracker.yaml"
 
     # Carregar o modelo YOLOv10x
     model = YOLO(MODEL_PATH)
-    cap = cv2.VideoCapture(VIDEO_PATH)
+    cap   = cv2.VideoCapture(VIDEO_PATH)
 
-    # Regras de Negócio: Contagem e Nomes
+    # Pegamos a largura, altura e FPS originais do vídeo para o arquivo final ficar com a mesma qualidade
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps    = int(cap.get(cv2.CAP_PROP_FPS))
+    
+    # Criamos o arquivo de saída 'resultado_wasser.mp4'
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec de vídeo
+    out    = cv2.VideoWriter('resultado_wasser.mp4', fourcc, fps, (width, height))
+
     gado_contado = set()
     nome_gado = {
         1: "Mimosa",
@@ -42,7 +49,7 @@ def main():
 
             if result.boxes is not None and result.boxes.id is not None:
                 boxes_xyxy = result.boxes.xyxy.cpu().numpy()
-                track_ids = result.boxes.id.int().cpu().tolist()
+                track_ids  = result.boxes.id.int().cpu().tolist()
 
                 for box_xyxy, track_id in zip(boxes_xyxy, track_ids):
                     
@@ -62,7 +69,9 @@ def main():
             cv2.putText(annotated_frame, f"Total Unico Contado: {len(gado_contado)}", (20, 50), 
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
 
-            # Mostrar a imagem
+            # Salvando o frame rabiscado no nosso arquivo de vídeo ---
+            out.write(annotated_frame)
+
             cv2.imshow("Wasser Tracking", annotated_frame)
 
             # Quebrar o loop se 'q' for pressionado
@@ -71,8 +80,11 @@ def main():
         else:
             break
 
+    # Fechando e salvando o arquivo final
+    out.release()
     cap.release()
     cv2.destroyAllWindows()
+    print(f"Processamento concluído. Vídeo salvo como 'resultado_wasser.mp4'")
 
 if __name__ == "__main__":
     main()

@@ -1,13 +1,29 @@
-# vigilio_tracker.yaml - Configuração de Rastreamento e Memória
-tracker_type: botsort         # o único que suporta ReID nativamente
-track_high_thresh: 0.3        # Confiança mínima para a primeira tentativa de manter o ID.
-track_low_thresh: 0.1         # Confiança mais baixa aceita se a primeira tentativa falhar.
-new_track_thresh: 0.4         # Confiança mínima para o modelo decidir que é um boi NOVO.
-track_buffer: 900             # "Memória": Lembra do boi por 900 frames depois que ele some da tela.
-match_thresh: 0.8             # Flexibilidade na correspondência do movimento (limite de tolerância).
-fuse_score: True              # Combina a pontuação de confiança com a posição para errar menos.
-gmc_method: sparseOptFlow     # Compensa balanços da câmera (estabiliza o rastreamento).
-proximity_thresh: 0.5         # O boi tem que estar espacialmente perto do último local antes de usar o ReID.
-appearance_thresh: 0.25       # Quão visualmente parecido o boi tem que ser para recuperar o ID antigo.
-with_reid: True               # LIGA A MÁGICA: Ativa a extração visual ("impressão digital" da pelagem).
-model: auto                   # Usa o próprio modelo YOLO base para gerar essa "impressão digital".
+# wasser_tracker.yaml
+tracker_type: botsort
+track_high_thresh: 0.3
+track_low_thresh: 0.1
+new_track_thresh: 0.6 
+
+track_buffer: 900
+
+# 2. FLEXIBILIDADE ESPACIAL: Aumentado para 0.9
+match_thresh: 0.9 
+
+fuse_score: True
+gmc_method: sparseOptFlow
+
+# 3. DISTÂNCIA DE RETORNO: Aumentamos para 0.8. 
+# Se a Mimosa sumiu no canto esquerdo e voltou no canto direito, 
+# o sistema original (0.5) não deixava reconectar porque estava "muito longe". Agora deixa.
+proximity_thresh: 0.8 
+
+# 4. TOLERÂNCIA VISUAL: Diminuímos para 0.1.
+# Por causa do sol e das sombras (que dão pra ver forte nas suas imagens), a cor do boi muda.
+# Isso deixa o sistema mais tolerante para dizer "sim, é o mesmo boi, a cor só tá com sombra".
+appearance_thresh: 0.1 
+
+with_reid: True
+
+# 5. O CÉREBRO DEDICADO DE REID (Conforme a documentação)
+# Trocamos 'auto' por um modelo de classificação que extrai características melhores.
+model: yolov26x-cls.pt
