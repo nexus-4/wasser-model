@@ -1,29 +1,18 @@
-# wasser_tracker.yaml
 tracker_type: botsort
 track_high_thresh: 0.3
 track_low_thresh: 0.1
-new_track_thresh: 0.6 
+new_track_thresh: 0.6
 
-track_buffer: 900
+track_buffer: 3000 
 
-# 2. FLEXIBILIDADE ESPACIAL: Aumentado para 0.9
-match_thresh: 0.9 
-
+match_thresh: 0.8
 fuse_score: True
-gmc_method: sparseOptFlow
 
-# 3. DISTÂNCIA DE RETORNO: Aumentamos para 0.8. 
-# Se a Mimosa sumiu no canto esquerdo e voltou no canto direito, 
-# o sistema original (0.5) não deixava reconectar porque estava "muito longe". Agora deixa.
-proximity_thresh: 0.8 
+gmc_method: sparseOptFlow 
 
-# 4. TOLERÂNCIA VISUAL: Diminuímos para 0.1.
-# Por causa do sol e das sombras (que dão pra ver forte nas suas imagens), a cor do boi muda.
-# Isso deixa o sistema mais tolerante para dizer "sim, é o mesmo boi, a cor só tá com sombra".
-appearance_thresh: 0.1 
+proximity_thresh: 0.01 
+
+appearance_thresh: 0.25 
 
 with_reid: True
-
-# 5. O CÉREBRO DEDICADO DE REID (Conforme a documentação)
-# Trocamos 'auto' por um modelo de classificação que extrai características melhores.
 model: yolo26x-cls.pt

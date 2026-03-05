@@ -41,7 +41,7 @@ def main():
                 persist=True, 
                 tracker=TRACKER_PATH, 
                 classes=[19],
-                verbose=False
+                verbose=False,
             )
             
             result = results[0]
