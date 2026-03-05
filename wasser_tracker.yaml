@@ -26,4 +26,4 @@ with_reid: True
 
 # 5. O CÉREBRO DEDICADO DE REID (Conforme a documentação)
 # Trocamos 'auto' por um modelo de classificação que extrai características melhores.
-model: yolov26x-cls.pt
+model: yolo26x-cls.pt

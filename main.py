@@ -4,7 +4,7 @@ from ultralytics import YOLO
 def main():
     print("Inicializando Sistema Wasser...")
 
-    MODEL_PATH   = "yolov26x.pt" 
+    MODEL_PATH   = "yolo26x.pt" 
     VIDEO_PATH   = "media/video-teste-wasser.mp4"
     TRACKER_PATH = "wasser_tracker.yaml"
 
