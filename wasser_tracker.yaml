@@ -1,18 +1,12 @@
-tracker_type: botsort
-track_high_thresh: 0.3
-track_low_thresh: 0.1
-new_track_thresh: 0.6
-
-track_buffer: 3000 
-
-match_thresh: 0.8
-fuse_score: True
-
-gmc_method: sparseOptFlow 
-
-proximity_thresh: 0.01 
-
-appearance_thresh: 0.25 
-
-with_reid: True
-model: yolo26x-cls.pt
+tracker_type: botsort       # Tipo de tracker usado para manter IDs entre frames.
+track_high_thresh: 0.3      # Confianca minima alta para associar deteccoes a tracks existentes.
+track_low_thresh: 0.1       # Confianca minima baixa para segunda tentativa de associacao.
+new_track_thresh: 0.6       # Confianca minima para criar um novo track.
+track_buffer: 3000          # Quantos frames um track pode ficar sem deteccao antes de ser removido.
+match_thresh: 0.8           # Quao estrito e o casamento entre deteccao e track (IoU/distancia).
+fuse_score: True            # Combina score de deteccao com score de matching na associacao.
+gmc_method: sparseOptFlow   # Metodo de compensacao de movimento de camera global.
+proximity_thresh: 0.01      # Limite de proximidade espacial para permitir correspondencia.
+appearance_thresh: 0.25     # Limite de similaridade visual (ReID) para aceitar correspondencia.
+with_reid: True             # Ativa ReID para usar caracteristicas visuais na associacao.
+model: yolo26x-cls.pt       # Modelo usado pelo ReID/embedding de aparencia.
