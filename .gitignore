@@ -1,0 +1,12 @@
+# Virtual environment
+venv/
+
+# Python cache/bytecode
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# Local generated output
+resultado_wasser.mp4
