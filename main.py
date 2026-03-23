@@ -13,9 +13,9 @@ def main():
     video   = cv2.VideoCapture(VIDEO_PATH)
 
     # Pegamos a largura, altura e FPS originais do vídeo para o arquivo final ficar com a mesma qualidade
-    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps    = int(cap.get(cv2.CAP_PROP_FPS))
+    width  = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps    = int(video.get(cv2.CAP_PROP_FPS))
     
     # Criamos o arquivo de saída 'resultado_wasser.mp4'
     fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec de vídeo
