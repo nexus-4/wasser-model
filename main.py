@@ -10,7 +10,7 @@ def main():
 
     # Carregar o modelo YOLOv10x
     model = YOLO(MODEL_PATH)
-    cap   = cv2.VideoCapture(VIDEO_PATH)
+    video   = cv2.VideoCapture(VIDEO_PATH)
 
     # Pegamos a largura, altura e FPS originais do vídeo para o arquivo final ficar com a mesma qualidade
     width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -31,8 +31,8 @@ def main():
 
     print("Pronto para iniciar o rastreamento...")
 
-    while cap.isOpened():
-        success, frame = cap.read()
+    while video.isOpened():
+        success, frame = video.read()
         
         if success:
             # Executar o rastreamento
@@ -82,7 +82,7 @@ def main():
 
     # Fechando e salvando o arquivo final
     out.release()
-    cap.release()
+    video.release()
     cv2.destroyAllWindows()
     print(f"Processamento concluído. Vídeo salvo como 'resultado_wasser.mp4'")
 
