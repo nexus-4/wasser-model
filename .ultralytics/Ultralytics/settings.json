@@ -1,0 +1,21 @@
+{
+  "settings_version": "0.0.6",
+  "datasets_dir": "C:\\Users\\carlo\\Desktop\\\u00c1rea de Trabalho\\wasser-model\\datasets",
+  "weights_dir": "weights",
+  "runs_dir": "runs",
+  "uuid": "a21504f25aa1d03763d8e54b5058ae963c2680c474137368f91b8ac3eb398781",
+  "sync": true,
+  "api_key": "",
+  "openai_api_key": "",
+  "clearml": true,
+  "comet": true,
+  "dvc": true,
+  "hub": true,
+  "mlflow": true,
+  "neptune": true,
+  "raytune": true,
+  "tensorboard": false,
+  "wandb": false,
+  "vscode_msg": true,
+  "openvino_msg": true
+}
