@@ -33,7 +33,7 @@ def main():
     print("Inicializando Sistema Wasser...")
 
     MODEL_PATH   = "yolo26x.pt" 
-    VIDEO_PATH   = "media/video-teste-wasser.mp4"
+    VIDEO_PATH   = "media/video-teste-wasser.mp4"#Lembrar de colocar o vídeo no diretório antes de rodar .
     TRACKER_PATH = "wasser_tracker.yaml"
 
     # Carregar o modelo YOLOv10x
@@ -55,9 +55,14 @@ def main():
         2: "Biscoito",
         3: "Pipoca",
         4: "Bolinha",
-        5: "Urso",
-        6: "Pé de Pano",
+        5: "Pé de Pano",
+        6:"Nica",
+        7:"Betsy",
+        8:"Caramelo",
+        9:"Branquinha",
+        10:"Azeite",
     }
+    
 
     print("Pronto para iniciar o rastreamento...")
 
