@@ -10,6 +10,7 @@ from processor import (
     DEFAULT_TRACKER_PATH,
     load_model,
     process_video,
+    resolve_device,
 )
 
 
@@ -39,6 +40,24 @@ def create_heatmap_output_path():
     temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
     temp_output.close()
     return temp_output.name
+
+
+def discard_temp_file(path):
+    """Remove um temporario sem quebrar o app se ele ja sumiu ou esta em uso."""
+    if not path:
+        return
+    try:
+        Path(path).unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def discard_previous_results():
+    """Limpa a saida da rodada anterior antes de comecar uma nova."""
+    discard_temp_file(st.session_state.get("processed_video_path"))
+    discard_temp_file(st.session_state.get("heatmap_path"))
+    st.session_state.processed_video_path = None
+    st.session_state.heatmap_path = None
 
 
 def validate_app_inputs(tracker_path):
@@ -666,6 +685,20 @@ with st.sidebar:
     )
     counter_mode = "acumulado" if counter_mode_label == "Accumulated total" else "frame"
 
+    device_label = st.radio(
+        "Processing device",
+        options=("Auto", "GPU (CUDA)", "GPU (Apple MPS)", "CPU"),
+        index=0,
+        help="Auto usa CUDA, depois MPS, depois CPU. CUDA exige o extra cu130 instalado.",
+    )
+    device = {
+        "Auto": None,
+        "GPU (CUDA)": "cuda",
+        "GPU (Apple MPS)": "mps",
+        "CPU": "cpu",
+    }[device_label]
+    st.caption(f"Em uso: {resolve_device(device)}")
+
 render_html(
     """
     <div class="top-header">
@@ -769,6 +802,7 @@ if process_clicked and uploaded_video is not None:
         st.stop()
 
     st.session_state.status_label = "Processing"
+    discard_previous_results()
     progress_bar = progress_placeholder.progress(0)
     input_path = save_uploaded_video(uploaded_video)
     output_path = create_output_path()
@@ -803,11 +837,18 @@ if process_clicked and uploaded_video is not None:
             preview_callback=update_preview,
             output_heatmap_path=heatmap_path,
             imgsz=inference_size,
+            device=device,
         )
     except Exception as exc:
         st.session_state.status_label = "Error"
+        discard_temp_file(output_path)
+        discard_temp_file(heatmap_path)
         message_placeholder.error(f"Processing error: {exc}")
         st.stop()
+    finally:
+        # O video de entrada ja foi consumido; so a saida precisa sobreviver
+        # ao rerun do Streamlit.
+        discard_temp_file(input_path)
 
     st.session_state.processed_video_path = output_path
     st.session_state.heatmap_path = result["heatmap_path"]

@@ -1,5 +1,6 @@
 # Virtual environment
 venv/
+.venv/
 
 # Python cache/bytecode
 __pycache__/
@@ -8,9 +9,30 @@ __pycache__/
 # macOS
 .DS_Store
 
+# IDEs
+.idea/
+.vscode/
+
+# Config local do Ultralytics (contem caminhos absolutos da maquina)
+.ultralytics/
+
 # Model weights (large files - not versioned in Git)
 *.pt
 
 # Media / video files (large files - not versioned in Git)
 media/
 resultado_wasser.mp4
+resultado_wasser_heatmap.jpg
+
+# Dataset de treino: tudo aqui e regeneravel a partir de videos/ pelos
+# scripts em training/ (imagens pelo extract_frames, rotulos-rascunho pelo
+# pre_annotate, split e caches pelo split_dataset/Ultralytics).
+# ATENCAO: depois de revisar os rotulos a mao eles deixam de ser
+# regeneraveis. Versione-os de proposito com:
+#     git add -f training/dataset/labels/*.txt
+training/dataset/
+# Dataset publico aerial-cows: baixado por training/import_aerial_cows.py
+training/dataset_aerial_cows/
+training/dataset_aerial_cows.yaml
+training/.dataset.resolved.yaml
+runs/

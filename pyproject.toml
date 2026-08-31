@@ -1,0 +1,67 @@
+[project]
+name = "wasser-model"
+version = "0.1.0"
+description = "Deteccao, rastreamento e contagem unica de gado em video (YOLO + BoT-SORT)"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "lap>=0.5.12",
+    "numpy>=2.1.0",
+    "opencv-python>=5.0.0.93",
+    "streamlit>=1.40.0",
+    "ultralytics>=8.4.117",
+]
+
+# torch/torchvision NAO ficam nas dependencias base de proposito: e o extra
+# escolhido que decide de qual index eles vem. Escolha exatamente um:
+#
+#   uv sync --extra cpu     -> CPU puro. Serve no Docker e no MacBook
+#                              (no macOS este wheel ja traz o MPS/Metal;
+#                              CUDA nao existe em Mac).
+#   uv sync --extra cu130   -> CUDA 13.0. Windows/Linux com GPU NVIDIA.
+#
+# Nunca os dois juntos: o bloco [tool.uv] conflicts abaixo impede.
+[project.optional-dependencies]
+# Dependencias so do fluxo de treino (training/), fora do runtime do app.
+training = [
+    "datasets>=3.0.0",
+]
+cpu = [
+    "torch>=2.13.0",
+    "torchvision>=0.28.0",
+]
+cu130 = [
+    # O index cu130 nao publica wheels para macOS. O marker evita que um Mac
+    # tente resolver este extra e falhe com erro obscuro.
+    "torch>=2.13.0; sys_platform != 'darwin'",
+    "torchvision>=0.28.0; sys_platform != 'darwin'",
+]
+
+[tool.uv]
+conflicts = [
+    [{ extra = "cpu" }, { extra = "cu130" }],
+]
+
+# Sem estas entradas o uv resolveria torch pelo PyPI e traria o build CUDA
+# mesmo no extra cpu. Elas so valem porque torch e torchvision sao
+# dependencias diretas (via extra); como transitivas do ultralytics,
+# [tool.uv.sources] seria ignorado.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu130", extra = "cu130" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu130", extra = "cu130" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true

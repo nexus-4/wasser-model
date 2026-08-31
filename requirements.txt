@@ -1,4 +1,18 @@
-ultralytics
-opencv-python
-streamlit
-numpy
+# Espelho de pyproject.toml para quem instala via pip.
+# Fonte de verdade: pyproject.toml (uv). Mantenha os dois em sincronia.
+#
+# torch/torchvision NAO estao aqui de proposito: a variante depende da
+# maquina. Instale-os antes, escolhendo uma:
+#
+#   CPU (serve em qualquer lugar; no macOS ja traz MPS/Metal):
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#
+#   GPU NVIDIA (Windows/Linux, CUDA 13.0):
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+#
+# Depois: pip install -r requirements.txt
+lap>=0.5.12
+numpy>=2.1.0
+opencv-python>=5.0.0.93
+streamlit>=1.40.0
+ultralytics>=8.4.117

@@ -6,11 +6,34 @@ from ultralytics import YOLO
 
 
 DEFAULT_MODEL_PATH = "yolo26x.pt"
-DEFAULT_VIDEO_PATH = "media/video-teste-wasser.mp4"
+DEFAULT_VIDEO_PATH = "videos/YTDown.com_Shorts_Video-por-drone-mostra-como-o-gado-se-mo_Media_0dqOtU8HJqg_001_720p.mp4"
 DEFAULT_TRACKER_PATH = "wasser_tracker.yaml"
 DEFAULT_OUTPUT_PATH = "resultado_wasser.mp4"
 DEFAULT_INFERENCE_SIZE = 640
-COW_CLASS_ID = 19
+COW_CLASS_ID = 19  # indice "cow" no COCO, usado pelos pesos genericos
+CATTLE_CLASS_ID = 0  # indice unico dos pesos fine-tunados (ver training/)
+DEFAULT_CLASS_IDS = [COW_CLASS_ID]
+
+
+def resolve_device(device=None):
+    """Escolhe o acelerador disponivel: CUDA (NVIDIA), MPS (Apple) ou CPU.
+
+    Passe um valor explicito ("cuda", "mps", "cpu", "0") para forcar.
+    O suporte a CUDA depende do extra instalado: uv sync --extra cu130.
+    Com --extra cpu o torch nao tem CUDA e a deteccao cai para CPU.
+    """
+    if device:
+        return device
+
+    import torch
+
+    if torch.cuda.is_available():
+        return "cuda"
+    mps = getattr(torch.backends, "mps", None)
+    if mps is not None and mps.is_available():
+        return "mps"
+    return "cpu"
+
 
 DEFAULT_CATTLE_NAMES = {
     1: "Mimosa",
@@ -18,7 +41,7 @@ DEFAULT_CATTLE_NAMES = {
     3: "Pipoca",
     4: "Bolinha",
     5: "Urso",
-    6: "Pe de Pano",
+    6: "Pé de Pano",
 }
 
 
@@ -103,6 +126,13 @@ def validate_processing_inputs(video_path, model_path, tracker_path):
         if not Path(path).exists():
             missing.append(f"{label}: {path}")
 
+    # Nome simples (ex.: "yolo26x.pt") fica a cargo do download automatico do
+    # Ultralytics; so validamos quando o usuario aponta um caminho explicito.
+    model_path = str(model_path)
+    is_explicit_path = "/" in model_path or "\\" in model_path
+    if is_explicit_path and not Path(model_path).exists():
+        missing.append(f"model: {model_path}")
+
     if missing:
         raise FileNotFoundError("Required files not found: " + "; ".join(missing))
 
@@ -120,7 +150,13 @@ def process_video(
     output_heatmap_path=None,
     imgsz=DEFAULT_INFERENCE_SIZE,
     preview_interval=5,
+    class_ids=None,
+    device=None,
 ):
+    # Pesos genericos (COCO) usam a classe 19; pesos fine-tunados em uma
+    # unica classe usam 0. Ver training/README.md.
+    class_ids = list(DEFAULT_CLASS_IDS if class_ids is None else class_ids)
+    device = resolve_device(device)
     validate_processing_inputs(video_path, model_path, tracker_path)
 
     model = model or load_model(model_path)
@@ -160,8 +196,9 @@ def process_video(
                 frame,
                 persist=True,
                 tracker=tracker_path,
-                classes=[COW_CLASS_ID],
+                classes=class_ids,
                 imgsz=imgsz,
+                device=device,
                 verbose=False,
             )
 
