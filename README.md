@@ -163,3 +163,52 @@ Cerca de 10x. Para processar video de verdade, ou para treinar, use GPU.
   torch enxerga o Metal:
   `uv run python -c "import torch; print(torch.backends.mps.is_available())"`.
 - **Janela de video nao abre** (modo terminal): verifique suporte grafico/OpenCV. A interface web nao precisa de display.
+
+## Medicao com marcadores ArUco
+
+Filmagem com marcadores ArUco no chao permite converter pixels em
+centimetros, o que abre medicao dimensional e contagem com sentido.
+
+Os marcadores usados sao `DICT_4X4_50`. **O detector enxerga o quadrado
+preto**, nao a placa branca em volta -- `--marker-cm` e o lado do quadrado.
+
+### Escala
+
+```bash
+uv run python training/aruco_scale.py VIDEO.MP4 --marker-cm 50
+```
+
+Devolve a escala (cm/px), a area coberta pelo quadro e a variacao do
+marcador ao longo do voo, que indica se a altitude ficou estavel.
+
+Medido nos voos de 14/08/2026, com marcador de 50 cm:
+
+| video | escala | cena | variacao |
+| --- | --- | --- | --- |
+| ..._0018_D | 0,2506 cm/px | 9,62 x 5,41 m | 2,5% |
+| ..._0019_D | 0,2882 cm/px | 11,07 x 6,22 m | 3,2% |
+
+### Medidas em centimetros
+
+```bash
+uv run python training/measure_cattle.py VIDEO.MP4 --marker-cm 50 -o medidas.csv
+```
+
+A escala vem do marcador visivel no proprio frame, entao variacao de
+altitude nao contamina a medida. Descarta animal encostado em outro (a
+caixa engloba os dois) e animal tocando a borda do quadro (esta cortado).
+
+**A medida e da caixa envolvente, da cauda ao focinho** -- nao e
+comprimento corporal no sentido zootecnico. Para estimar peso, calibre
+contra balanca usando o mesmo criterio nas duas pontas.
+
+### Contagem por cruzamento de linha
+
+```bash
+uv run python training/line_count.py VIDEO.MP4 --line 0.5,0,0.5,1 --save-video saida.mp4
+```
+
+Conta animal que atravessa a linha, com sentido (entrada/saida). E mais
+confiavel que o acumulo de track IDs do `processor.py`, que infla quando o
+tracker perde e reencontra um animal com ID novo. A linha e dada em fracao
+do quadro, entao independe da resolucao.
