@@ -35,13 +35,19 @@ def resolve_device(device=None):
     return "cpu"
 
 
+# Chaveado por track ID do tracker, que e arbitrario: e rotulo, nao identidade.
 DEFAULT_CATTLE_NAMES = {
     1: "Mimosa",
     2: "Biscoito",
     3: "Pipoca",
     4: "Bolinha",
-    5: "Urso",
-    6: "Pé de Pano",
+    5: "Pé de Pano",
+    6: "Nica",
+    7: "Betsy",
+    8: "Caramelo",
+    9: "Branquinha",
+    10: "Azeite",
+    11: "Urso",
 }
 
 
@@ -126,8 +132,8 @@ def validate_processing_inputs(video_path, model_path, tracker_path):
         if not Path(path).exists():
             missing.append(f"{label}: {path}")
 
-    # Nome simples (ex.: "yolo26x.pt") fica a cargo do download automatico do
-    # Ultralytics; so validamos quando o usuario aponta um caminho explicito.
+    # Nome simples cai no download automatico do Ultralytics; so caminho
+    # explicito precisa existir.
     model_path = str(model_path)
     is_explicit_path = "/" in model_path or "\\" in model_path
     if is_explicit_path and not Path(model_path).exists():
@@ -153,8 +159,6 @@ def process_video(
     class_ids=None,
     device=None,
 ):
-    # Pesos genericos (COCO) usam a classe 19; pesos fine-tunados em uma
-    # unica classe usam 0. Ver training/README.md.
     class_ids = list(DEFAULT_CLASS_IDS if class_ids is None else class_ids)
     device = resolve_device(device)
     validate_processing_inputs(video_path, model_path, tracker_path)

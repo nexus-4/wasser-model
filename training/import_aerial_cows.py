@@ -58,11 +58,9 @@ def main():
             linhas = []
             for bbox in ex["objects"]["bbox"]:
                 cx, cy, bw, bh = coco_to_yolo(bbox, width, height)
-                # Caixa degenerada ou fora do quadro quebra o treino.
                 if bw <= 0 or bh <= 0 or not (0 <= cx <= 1 and 0 <= cy <= 1):
                     descartadas += 1
                     continue
-                # Classe unica: 0 = cattle, igual ao training/dataset.yaml.
                 linhas.append(f"0 {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}")
 
             ex["image"].convert("RGB").save(img_dir / f"{stem}.jpg", quality=95)

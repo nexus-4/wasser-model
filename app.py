@@ -846,8 +846,6 @@ if process_clicked and uploaded_video is not None:
         message_placeholder.error(f"Processing error: {exc}")
         st.stop()
     finally:
-        # O video de entrada ja foi consumido; so a saida precisa sobreviver
-        # ao rerun do Streamlit.
         discard_temp_file(input_path)
 
     st.session_state.processed_video_path = output_path
