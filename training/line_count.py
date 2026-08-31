@@ -20,9 +20,12 @@ from ultralytics import YOLO
 COW_CLASS_ID = 19
 
 
-def lado_da_linha(ponto, a, b):
-    """Sinal do produto vetorial: de que lado da reta AB esta o ponto."""
-    return np.sign((b[0] - a[0]) * (ponto[1] - a[1]) - (b[1] - a[1]) * (ponto[0] - a[0]))
+def distancia_com_sinal(ponto, a, b):
+    """Distancia do ponto a reta AB, com sinal indicando o lado."""
+    ab = np.array(b, dtype=float) - np.array(a, dtype=float)
+    n = np.linalg.norm(ab)
+    cross = ab[0] * (ponto[1] - a[1]) - ab[1] * (ponto[0] - a[0])
+    return cross / (n + 1e-9)
 
 
 def dentro_do_segmento(ponto, a, b, folga=60):
@@ -42,6 +45,10 @@ def main():
     parser.add_argument("--tracker", default="wasser_tracker.yaml")
     parser.add_argument("--imgsz", type=int, default=1280)
     parser.add_argument("--conf", type=float, default=0.4)
+    parser.add_argument("--deadzone", type=float, default=0.04,
+                        help="zona morta em volta da linha, em fracao da diagonal do "
+                             "quadro. Animal parado sobre a linha oscila entre os dois "
+                             "lados e conta varias vezes sem isto.")
     parser.add_argument("--save-video", type=Path)
     args = parser.parse_args()
 
@@ -62,7 +69,8 @@ def main():
         saida = cv2.VideoWriter(str(args.save_video), cv2.VideoWriter_fourcc(*"mp4v"),
                                 fps, (largura, altura))
 
-    lado_anterior = {}
+    zona = args.deadzone * float(np.hypot(largura, altura))
+    lado_confirmado = {}
     entradas = saidas = 0
     eventos = []
 
@@ -83,9 +91,12 @@ def main():
                                       r.boxes.id.int().cpu().tolist()):
                     x1, y1, x2, y2 = caixa
                     centro = ((x1 + x2) / 2, (y1 + y2) / 2)
-                    lado = lado_da_linha(centro, a, b)
-                    anterior = lado_anterior.get(tid)
-                    if anterior is not None and lado != 0 and anterior != lado:
+                    d = distancia_com_sinal(centro, a, b)
+                    if abs(d) < zona:
+                        continue
+                    lado = 1 if d > 0 else -1
+                    anterior = lado_confirmado.get(tid)
+                    if anterior is not None and anterior != lado:
                         if dentro_do_segmento(centro, a, b):
                             if lado > 0:
                                 entradas += 1
@@ -93,7 +104,7 @@ def main():
                             else:
                                 saidas += 1
                                 eventos.append((frame_no, tid, "saida"))
-                    lado_anterior[tid] = lado
+                    lado_confirmado[tid] = lado
 
             if saida is not None:
                 vis = frame.copy()
@@ -101,6 +112,12 @@ def main():
                     for caixa in r.boxes.xyxy.cpu().numpy():
                         x1, y1, x2, y2 = map(int, caixa)
                         cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                d = np.array(b, dtype=float) - np.array(a, dtype=float)
+                nrm = np.array([-d[1], d[0]]) / (np.linalg.norm(d) + 1e-9) * zona
+                for s_ in (1, -1):
+                    p1 = (np.array(a) + nrm * s_).astype(int)
+                    p2 = (np.array(b) + nrm * s_).astype(int)
+                    cv2.line(vis, tuple(p1), tuple(p2), (80, 80, 80), 2)
                 cv2.line(vis, tuple(map(int, a)), tuple(map(int, b)), (0, 200, 255), 5)
                 cv2.rectangle(vis, (0, 0), (760, 90), (0, 0, 0), -1)
                 cv2.putText(vis, f"Entradas: {entradas}   Saidas: {saidas}   Saldo: {entradas-saidas}",
