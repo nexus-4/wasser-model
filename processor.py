@@ -35,13 +35,23 @@ def resolve_device(device=None):
     return "cpu"
 
 
+# Ordem herdada da branch dev (PR #3), que tem precedencia por ser a lista
+# mais recente e mais completa. "Urso" so existia na main e foi preservado no
+# fim para nao se perder.
+# Os IDs vem do tracker e sao arbitrarios: quem pegar o ID 1 recebe "Mimosa",
+# nao ha vinculo com o animal real. E rotulo de exibicao, nao identidade.
 DEFAULT_CATTLE_NAMES = {
     1: "Mimosa",
     2: "Biscoito",
     3: "Pipoca",
     4: "Bolinha",
-    5: "Urso",
-    6: "Pé de Pano",
+    5: "Pé de Pano",
+    6: "Nica",
+    7: "Betsy",
+    8: "Caramelo",
+    9: "Branquinha",
+    10: "Azeite",
+    11: "Urso",
 }
 
 
