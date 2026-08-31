@@ -54,7 +54,6 @@ def main():
     if not ok:
         raise SystemExit(f"Nao consegui ler o frame {args.frame}")
 
-    # Generico: classe 19 = "cow" no COCO, que e o que o projeto usa hoje.
     gen = YOLO(args.generico)
     r_gen = gen.predict(frame, imgsz=args.imgsz, conf=args.conf, classes=[19], verbose=False)[0]
     img_gen, n_gen = desenhar(frame, r_gen, "COCO classes=[19]", (0, 165, 255))

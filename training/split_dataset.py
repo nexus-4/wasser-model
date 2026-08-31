@@ -23,9 +23,8 @@ def main():
     if not images:
         raise SystemExit("Nenhuma imagem. Rode extract_frames.py antes.")
 
-    # Frames vizinhos sao quase identicos: embaralhar por frame vaza informacao
-    # do treino para a validacao. Cortamos em bloco para manter os splits
-    # temporalmente separados.
+    # Corte em bloco, nao embaralhado: frames vizinhos sao quase identicos e
+    # vazariam do treino para a validacao.
     corte = int(len(images) * (1 - args.val_ratio))
     splits = {"train": images[:corte], "val": images[corte:]}
 

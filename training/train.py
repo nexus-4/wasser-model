@@ -77,24 +77,18 @@ def main():
     model = YOLO(args.base_model)
     results = model.train(
         data=str(data_yaml),
-        # Sem project explicito o Ultralytics usa o runs_dir global dele, que
-        # pode apontar para outro projeto da maquina.
+        # Sem isto o Ultralytics usa o runs_dir global, que pode apontar para
+        # outro projeto da maquina.
         project=str(REPO / "runs"),
         epochs=args.epochs,
         imgsz=args.imgsz,
         batch=args.batch,
         device=device,
         name=args.name,
-        # Vista aerea nao tem "cima" canonico: rotacao e flip vertical sao
-        # aumentos validos aqui, ao contrario de fotos de nivel do chao.
+        # Vista aerea nao tem "cima" canonico.
         flipud=0.5,
         fliplr=0.5,
         degrees=180.0,
-        # Tentador subir a escala para cobrir a diferenca de altitude entre
-        # o dataset publico (~9px) e a nossa filmagem (~44px), mas nao
-        # funciona: scale alto encolhe o animal para menos de 1 pixel e
-        # destroi a amostra. A diferenca se resolve no fine-tune da etapa 2,
-        # com frames proprios.
         scale=args.scale,
         workers=args.workers,
     )
