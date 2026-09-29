@@ -127,6 +127,31 @@ Mas espere queda de precisao em nelore, e planeje a segunda etapa:
 
 E um ciclo: cada rodada melhora o rascunho da rodada seguinte.
 
+## Armadilha: auto-treino duplica deteccoes
+
+Treinar com os rotulos-rascunho do `pre_annotate.py` sem revisao humana
+produz um modelo que marca o mesmo animal duas vezes. Medido em um frame de
+pasto com o modelo treinado assim:
+
+| | caixas |
+| --- | --- |
+| deteccoes brutas | 63 |
+| apos remover sobreposicoes (IoU > 0.25) | 45 |
+
+Eram 18 pares de caixas sobre o mesmo animal. Um contador que soma caixas
+infla o numero em cerca de 40%.
+
+Duas consequencias praticas:
+
+- **Ao contar, aplique supressao de sobreposicao antes de somar.** Contar
+  `len(boxes)` conta duplicatas.
+- **Nao confie na metrica de treino para julgar isso.** O mAP era 0.61 com o
+  modelo duplicando alegremente, porque os proprios rotulos-rascunho tinham
+  as duplicatas.
+
+A causa e a falta da revisao humana da etapa 3 do fluxo acima. Ela nao e
+opcional.
+
 ## GPU no treino
 
 O `train.py` detecta o acelerador sozinho e imprime qual escolheu. Para

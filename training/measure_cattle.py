@@ -31,6 +31,29 @@ def escala_do_frame(frame, detector, marker_cm):
     return marker_cm / float(np.median(lados))
 
 
+def medida_orientada(roi):
+    """Comprimento, largura e angulo do animal, via retangulo de area minima.
+
+    A caixa do detector e alinhada aos eixos: um animal na diagonal vira quase
+    quadrado (proporcao 1:1 em vez de 3.7:1) e a largura fica inutil.
+    """
+    if roi.size == 0:
+        return None
+    cinza = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
+    cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not cnts:
+        return None
+    maior = max(cnts, key=cv2.contourArea)
+    if cv2.contourArea(maior) < 0.15 * roi.shape[0] * roi.shape[1]:
+        return None
+    (_, _), (w, h), ang = cv2.minAreaRect(maior)
+    if min(w, h) <= 0:
+        return None
+    return max(w, h), min(w, h), ang
+
+
 def toca_borda(caixa, largura, altura, margem=8):
     x1, y1, x2, y2 = caixa
     return x1 <= margem or y1 <= margem or x2 >= largura - margem or y2 >= altura - margem
@@ -103,14 +126,24 @@ def main():
                 if not so and not args.all:
                     continue
                 w, h = (x2 - x1) * cm_px, (y2 - y1) * cm_px
+                orient = medida_orientada(frame[int(y1):int(y2), int(x1):int(x2)])
+                comp_o = larg_o = ang_o = razao = None
+                if orient is not None:
+                    comp_o = round(orient[0] * cm_px, 1)
+                    larg_o = round(orient[1] * cm_px, 1)
+                    ang_o = round(orient[2], 1)
+                    razao = round(comp_o / larg_o, 2) if larg_o else None
                 linhas.append({
                     "frame": frame_no,
                     "conf": round(cf, 3),
                     "isolado": so,
                     "cm_por_px": round(cm_px, 5),
-                    "comprimento_cm": round(max(w, h), 1),
-                    "largura_cm": round(min(w, h), 1),
-                    "area_cm2": round(w * h, 0),
+                    "comprimento_cm": comp_o,
+                    "largura_cm": larg_o,
+                    "angulo": ang_o,
+                    "razao": razao,
+                    "bbox_comp_cm": round(max(w, h), 1),
+                    "bbox_larg_cm": round(min(w, h), 1),
                     "cx_px": round((x1 + x2) / 2, 1),
                     "cy_px": round((y1 + y2) / 2, 1),
                 })
@@ -126,7 +159,7 @@ def main():
         w.writeheader()
         w.writerows(linhas)
 
-    isolados = [x for x in linhas if x["isolado"]]
+    isolados = [x for x in linhas if x["isolado"] and x["comprimento_cm"]]
     print(f"Frames sem marcador visivel : {sem_escala}")
     print(f"Descartados na borda        : {cortados[0]}")
     print(f"Medidas exportadas          : {len(linhas)} ({len(isolados)} isoladas)")
