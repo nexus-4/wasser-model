@@ -20,6 +20,8 @@ sys.path.insert(0, str(REPO))
 from processor import (PASTURE_INFERENCE_SIZE, PASTURE_MODEL_PATH, pasture_boxes,
                        prepare_browser_video, resolve_class_ids, resolve_device)
 
+from training.track_recovery import recuperar_ids
+
 
 def assinatura(frame):
     h, w = frame.shape[:2]
@@ -67,13 +69,14 @@ def provavel_replay(atual, original):
             and np.all(np.diff(posicoes) >= 0) and len(np.unique(posicoes)) >= 6)
 
 
-def rastrear(video, inicio, fim, modelo, opcoes, minimo, saida):
+def rastrear(video, inicio, fim, modelo, opcoes, minimo, saida, fps=30, auditoria=None):
     config = SimpleNamespace(**YAML.load(check_yaml("bytetrack.yaml")))
     # A posição é mais estável que a confiança do detector neste vídeo aéreo.
     config.fuse_score = False
     tracker = BYTETracker(config)
     registros = {}
-    confirmadas = 0
+    caixas = {}
+    por_frame = []
     if not video.set(cv2.CAP_PROP_POS_FRAMES, inicio):
         raise ValueError(f"Falha ao posicionar vídeo no frame {inicio}.")
     for indice in range(inicio, fim):
@@ -83,16 +86,60 @@ def rastrear(video, inicio, fim, modelo, opcoes, minimo, saida):
         boxes = pasture_boxes(modelo, frame, **opcoes)
         deteccoes = (boxes.cpu().numpy() if boxes is not None else
                      Boxes(np.empty((0, 6), np.float32), frame.shape[:2]))
+        centros = []
         for x1, y1, x2, y2, tid, *_ in tracker.update(deteccoes):
             tid = int(tid)
             x, y = int((x1+x2)/2), int((y1+y2)/2)
+            caixa = np.array([x1, y1, x2, y2])
+            centros.append((tid, x, y))
             if tid not in registros:
+                caixas[tid] = [caixa, caixa]
                 registros[tid] = dict(id=tid, primeiro_frame=indice, x_inicial=x, y_inicial=y, deteccoes=0)
+            caixas[tid][1] = caixa
             r = registros[tid]
             r.update(ultimo_frame=indice, x_final=x, y_final=y, deteccoes=r["deteccoes"]+1)
-            if r["deteccoes"] == minimo:
+        por_frame.append(np.asarray(centros, dtype=np.int32))
+
+    anteriores = recuperar_ids(video, registros, caixas, minimo, fps)
+    canonicos, consolidados = consolidar(registros, anteriores, auditoria)
+    desenhar_trajetorias(video, inicio, por_frame, canonicos, minimo, saida)
+    return [{**r, "confirmada": int(r["deteccoes"] >= minimo)} for r in consolidados.values()]
+
+
+def consolidar(registros, anteriores, auditoria):
+    canonicos = {}
+    consolidados = {}
+    for tid, r in registros.items():  # ordem da primeira observação
+        raiz = canonicos[anteriores[tid]] if tid in anteriores else tid
+        canonicos[tid] = raiz
+        if tid == raiz:
+            consolidados[raiz] = {**r, "ids_origem": str(tid)}
+            continue
+        anterior = anteriores[tid]
+        if auditoria is not None:
+            auditoria.append(dict(id_final=raiz, id_anterior=anterior, id_novo=tid,
+                                  frame_antes=registros[anterior]["ultimo_frame"], frame_depois=r["primeiro_frame"]))
+        grupo = consolidados[raiz]
+        grupo.update(ultimo_frame=r["ultimo_frame"], x_final=r["x_final"], y_final=r["y_final"],
+                     deteccoes=grupo["deteccoes"] + r["deteccoes"], ids_origem=f"{grupo['ids_origem']},{tid}")
+    return canonicos, consolidados
+
+
+def desenhar_trajetorias(video, inicio, por_frame, canonicos, minimo, saida):
+    if not video.set(cv2.CAP_PROP_POS_FRAMES, inicio):
+        raise ValueError(f"Falha ao posicionar vídeo no frame {inicio}.")
+    contagens = {}
+    confirmadas = 0
+    for indice, centros in enumerate(por_frame, start=inicio):
+        ok, frame = video.read()
+        if not ok:
+            raise ValueError(f"Falha ao ler frame {indice}.")
+        for bruto, x, y in centros:
+            tid = canonicos[bruto]
+            contagens[tid] = contagens.get(tid, 0) + 1
+            if contagens[tid] == minimo:
                 confirmadas += 1
-            if r["deteccoes"] >= minimo:
+            if contagens[tid] >= minimo:
                 cv2.circle(frame, (x, y), 3, (70, 245, 150), -1, cv2.LINE_AA)
                 for cor, largura in [((0, 0, 0), 3), ((255, 255, 255), 1)]:
                     cv2.putText(frame, str(tid), (x+3, y-3), 0, .43, cor, largura, cv2.LINE_AA)
@@ -100,7 +147,6 @@ def rastrear(video, inicio, fim, modelo, opcoes, minimo, saida):
         for cor, largura in [((0, 0, 0), 4), ((255, 255, 255), 1)]:
             cv2.putText(frame, titulo, (8, 26), 0, .7, cor, largura, cv2.LINE_AA)
         saida.write(frame)
-    return [{**r, "confirmada": int(r["deteccoes"] >= minimo)} for r in registros.values()]
 
 
 def escrever_csv(path, colunas, linhas):
@@ -124,7 +170,7 @@ def analisar(args, pasta):
             raise ValueError("Nenhum frame legível.")
         modelo = YOLO(args.model)
         opcoes = dict(classes=resolve_class_ids(modelo), imgsz=PASTURE_INFERENCE_SIZE, device=resolve_device(args.device))
-        originais, resumo, trajetorias = [], [], []
+        originais, resumo, trajetorias, reassociacoes = [], [], [], []
         for numero, (inicio, fim, amostras) in enumerate(trechos, start=1):
             repetido = next((n for n, ref in originais if provavel_replay(amostras, ref)), None)
             linha = dict(trecho=numero, inicio=inicio, fim_exclusivo=fim,
@@ -136,7 +182,9 @@ def analisar(args, pasta):
                 try:
                     if not writer.isOpened():
                         raise ValueError(f"Falha ao abrir saída {path}")
-                    tracks = rastrear(video, inicio, fim, modelo, opcoes, args.min_amostras, writer)
+                    pares = []
+                    tracks = rastrear(video, inicio, fim, modelo, opcoes, args.min_amostras, writer, fps, pares)
+                    reassociacoes.extend(dict(trecho=numero, **p) for p in pares)
                 finally:
                     writer.release()
                 prepare_browser_video(path)
@@ -144,7 +192,8 @@ def analisar(args, pasta):
                 trajetorias.extend(dict(trecho=numero, **r) for r in tracks)
             resumo.append(linha)
         escrever_csv(pasta / "trechos.csv", "trecho inicio fim_exclusivo replay_provavel_de trajetorias_confirmadas", resumo)
-        escrever_csv(pasta / "trajetorias.csv", "trecho id primeiro_frame ultimo_frame x_inicial y_inicial x_final y_final deteccoes confirmada", trajetorias)
+        escrever_csv(pasta / "trajetorias.csv", "trecho id primeiro_frame ultimo_frame x_inicial y_inicial x_final y_final deteccoes confirmada ids_origem", trajetorias)
+        escrever_csv(pasta / "reassociacoes.csv", "trecho id_final id_anterior id_novo frame_antes frame_depois", reassociacoes)
     finally:
         video.release()
 

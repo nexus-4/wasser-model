@@ -244,12 +244,20 @@ mostra os IDs, o acumulado e o número do frame no arquivo original (começa em 
 coordenadas em pixels para revisão. `trechos.csv` aponta prováveis replays
 quando uma sequência visual se repete em ordem, inclusive em outra velocidade.
 
-No vídeo de exemplo de 1.086 frames, o trecho 0–362 gerou 89 trajetórias com o
-modelo local `pasto-v1`. Os frames 363–1085 repetem o trecho original em câmera
-lenta. Um animal claro aparece com ID 83 no frame 170 e ID 89 no frame 300.
-Essa troca explica uma duplicata. O total de animais do piquete depende ainda
-de revisar perdas e trocas de ID e de saber qual área o voo cobriu. Trechos
-diferentes podem mostrar o mesmo lote e são exportados separadamente.
+Quando uma trajetória termina e outra começa até três segundos depois no mesmo
+trecho, o programa compara o centro das caixas e acompanha a aparência do animal
+no vídeo, da primeira caixa até a segunda e de volta. As duas verificações
+precisam chegar ao centro esperado e o par precisa ser único. O vídeo mostra
+o ID recuperado nas detecções seguintes. O arquivo `reassociacoes.csv` lista os
+IDs e frames envolvidos, e `ids_origem` em `trajetorias.csv` preserva os IDs brutos.
+
+No vídeo de exemplo de 1.086 frames, o trecho 0–362 gerou **88 trajetórias
+confirmadas** com o modelo local `pasto-v1`. O animal claro observado pela
+última vez no frame 204 recuperou o ID 83 no frame 275 (ID bruto 89).
+Os frames 363–1085 repetem o trecho original em câmera lenta. O total de
+animais do piquete depende ainda de revisar perdas e trocas de ID e de saber
+qual área o voo cobriu. Trechos diferentes podem mostrar o mesmo lote e são
+exportados separadamente.
 
 ### Contagem por cruzamento de linha
 

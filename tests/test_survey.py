@@ -9,6 +9,21 @@ from training import survey_count
 
 
 class SurveyTests(unittest.TestCase):
+    def test_chain_preserves_original_ids_and_only_sums_observations(self):
+        fragments = {
+            tid: dict(id=tid, primeiro_frame=start, ultimo_frame=start+4, deteccoes=5,
+                      x_inicial=start, y_inicial=4, x_final=start+4, y_final=4)
+            for tid, start in [(8, 12), (12, 30), (25, 45)]
+        }
+        audit = []
+        ids, tracks = survey_count.consolidar(fragments, {12: 8, 25: 12}, audit)
+        self.assertEqual(ids, {8: 8, 12: 8, 25: 8})
+        self.assertEqual(tracks[8]["ids_origem"], "8,12,25")
+        self.assertEqual(tracks[8]["deteccoes"], 15)
+        self.assertEqual((tracks[8]["primeiro_frame"], tracks[8]["ultimo_frame"]), (12, 49))
+        self.assertEqual([(r["id_final"], r["id_anterior"], r["id_novo"]) for r in audit],
+                         [(8, 8, 12), (8, 12, 25)])
+
     def test_replay_in_slow_motion_is_separated_from_original(self):
         rng = np.random.default_rng(17)
         # Smooth movement within one shot, followed by a cut back to the beginning.
@@ -28,7 +43,7 @@ class SurveyTests(unittest.TestCase):
 
     def test_repeated_detections_count_once_and_transient_is_unconfirmed(self):
         video = Mock()
-        video.read.side_effect = [(True, np.zeros((180, 180, 3), np.uint8)) for _ in range(8)]
+        video.read.side_effect = [(True, np.zeros((180, 180, 3), np.uint8)) for _ in range(16)]
         stable = [20, 40, 50, 100, .8, 0]
         transient = [100, 40, 130, 100, .9, 0]
         timeline = [[stable, transient], [stable], [stable], [], [stable], [stable], [stable], [stable]]
