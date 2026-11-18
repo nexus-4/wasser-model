@@ -62,7 +62,7 @@ uv run python training/fit_weight.py sessao.csv
 
 O `fit_weight.py` testa comprimento, largura, area e `comp x larg^2` como
 preditores, e reporta R2, erro medio e erro por validacao cruzada
-(leave-one-out). **Use o erro LOO para julgar**, nao o R2: ele mede o erro em
+(leave-one-out). A seleção usa o menor erro absoluto médio LOO em kg. Em uma sessão, linhas com o mesmo brinco são agregadas pela mediana. Sem brinco, confira se cada linha corresponde a um animal diferente. Use outra sessão com balança para avaliar a curva escolhida. **Use o erro LOO para julgar**, nao o R2: ele mede o erro em
 animal que nao entrou no ajuste, que e o caso de uso real.
 
 ## O que esperar

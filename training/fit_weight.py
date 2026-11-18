@@ -8,7 +8,7 @@ Uso:
 """
 import argparse
 import csv
-import math
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -17,20 +17,24 @@ MIN_AMOSTRAS = 8
 
 
 def carregar(caminho):
-    linhas = []
-    with Path(caminho).open(encoding="utf-8") as fh:
-        for r in csv.DictReader(fh):
+    por_animal = defaultdict(list)
+    with Path(caminho).open(encoding="utf-8-sig", newline="") as fh:
+        for linha, r in enumerate(csv.DictReader(fh), start=2):
             if not r.get("peso_kg"):
                 continue
             try:
-                linhas.append({
-                    "peso": float(r["peso_kg"]),
-                    "comp": float(r["comprimento_cm"]),
-                    "larg": float(r["largura_cm"]),
-                })
-            except (ValueError, KeyError):
-                continue
-    return linhas
+                valores = [float(r[col]) for col in ("peso_kg", "comprimento_cm", "largura_cm")]
+            except (ValueError, TypeError, KeyError):
+                raise ValueError(f"Linha {linha}: peso ou dimensoes invalidas.") from None
+            if not all(np.isfinite(v) and v > 0 for v in valores):
+                raise ValueError(f"Linha {linha}: peso e dimensoes devem ser positivos e finitos.")
+            # Um tracker pode atribuir varios IDs ao mesmo animal na sessao.
+            brinco = (r.get("brinco") or "").strip()
+            por_animal[brinco or linha].append(valores)
+    return [
+        dict(zip(("peso", "comp", "larg"), np.median(amostras, axis=0)))
+        for amostras in por_animal.values()
+    ]
 
 
 def ajustar(x, y):
@@ -52,6 +56,8 @@ def validacao_cruzada(x, y):
     for i in range(len(x)):
         m = np.ones(len(x), bool)
         m[i] = False
+        if np.ptp(x[m]) == 0:
+            return float("inf"), float("inf")
         a, b = np.polyfit(x[m], y[m], 1)
         erros.append(abs(a * x[i] + b - y[i]))
     return float(np.mean(erros)), float(np.mean(np.array(erros) / y) * 100)
@@ -62,7 +68,10 @@ def main():
     parser.add_argument("csv", type=Path)
     args = parser.parse_args()
 
-    dados = carregar(args.csv)
+    try:
+        dados = carregar(args.csv)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     if len(dados) < MIN_AMOSTRAS:
         raise SystemExit(
             f"So {len(dados)} animais com peso preenchido. "
@@ -80,18 +89,23 @@ def main():
 
     print(f"Animais com peso: {len(dados)}")
     print(f"Faixa de peso   : {min(peso):.0f} a {max(peso):.0f} kg\n")
-    print(f"{'preditor':22} {'R2':>6} {'erro medio':>12} {'erro %':>8} {'LOO %':>8}")
+    print(f"{'preditor':22} {'R2':>6} {'erro medio':>12} {'erro %':>8} {'LOO kg':>8} {'LOO %':>8}")
 
     melhor = None
     for nome, x in preditores.items():
+        loo_kg, loo_pct = validacao_cruzada(x, peso)
+        if not np.isfinite(loo_kg):
+            print(f"{nome:22} variacao insuficiente para validacao")
+            continue
         a, b, r2, erro, pct = ajustar(x, peso)
-        _, loo_pct = validacao_cruzada(x, peso)
-        print(f"{nome:22} {r2:>6.3f} {erro:>9.1f} kg {pct:>7.1f}% {loo_pct:>7.1f}%")
-        if melhor is None or r2 > melhor[1]:
-            melhor = (nome, r2, a, b)
+        print(f"{nome:22} {r2:>6.3f} {erro:>9.1f} kg {pct:>7.1f}% {loo_kg:>8.1f} {loo_pct:>7.1f}%")
+        if melhor is None or loo_kg < melhor[0]:
+            melhor = (loo_kg, nome, r2, a, b)
 
-    nome, r2, a, b = melhor
-    print(f"\nMelhor preditor: {nome}")
+    if melhor is None:
+        raise SystemExit("Nenhum preditor com variacao suficiente entre animais.")
+    loo_kg, nome, r2, a, b = melhor
+    print(f"\nMelhor preditor: {nome} (erro absoluto medio LOO: {loo_kg:.1f} kg)")
     print(f"  peso_kg = {a:.6f} * {nome} + {b:.2f}   (R2 = {r2:.3f})")
 
     if r2 < 0.5:
