@@ -17,7 +17,7 @@ nao ha constante universal para copiar.
 
 **Um animal por vez, sozinho no quadro.** Este e o ponto que mais importa.
 Animal colado em outro faz a caixa do detector englobar os dois e a medida
-vira lixo -- foi o que inviabilizou a medicao no curral cheio.
+fica comprometida. O filtro de isolamento compara caixas detectadas. Se dois animais recebem uma única caixa, ela pode passar como isolada, inclusive com um modelo de segmentação.
 
 1. Marcador no chao, no mesmo plano do animal, dentro do quadro e sem ser
    pisado. Se o animal sobe numa plataforma, o marcador sobe junto: marcador
@@ -54,7 +54,9 @@ o razoavel para uma primeira curva.
 uv run python training/weigh_session.py VIDEO.MP4 --marker-cm 50 -o sessao.csv
 
 # 2. Abra sessao.csv e preencha peso_kg (e brinco) usando a ordem de passagem.
-#    As colunas primeiro_frame/ultimo_frame ajudam a localizar cada animal no video.
+#    Confira frame_revisao (primeiro frame = 1). É uma amostra próxima das
+#    medianas de comprimento e largura. Em caso de dúvida, confira o trecho
+#    entre primeiro_frame e ultimo_frame antes de associar o peso.
 
 # 3. Ajusta e valida a curva
 uv run python training/fit_weight.py sessao.csv

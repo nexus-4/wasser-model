@@ -106,11 +106,14 @@ def main():
             continue
         comp = float(np.median(d["comp"]))
         larg = float(np.median(d["larg"]))
+        desvio_relativo = (np.abs(np.asarray(d["comp"]) / comp - 1)
+                           + np.abs(np.asarray(d["larg"]) / larg - 1))
         linhas.append({
             "track_id": tid,
             "amostras": len(d["comp"]),
             "primeiro_frame": min(d["frames"]),
             "ultimo_frame": max(d["frames"]),
+            "frame_revisao": d["frames"][int(np.argmin(desvio_relativo))],
             "comprimento_cm": round(comp, 1),
             "largura_cm": round(larg, 1),
             "area_cm2": round(comp * larg, 0),

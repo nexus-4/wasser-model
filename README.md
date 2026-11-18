@@ -195,8 +195,7 @@ uv run python training/measure_cattle.py VIDEO.MP4 --marker-cm 50 -o medidas.csv
 ```
 
 A escala vem do marcador visivel no proprio frame, entao variacao de
-altitude nao contamina a medida. Descarta animal encostado em outro (a
-caixa engloba os dois) e animal tocando a borda do quadro (esta cortado).
+altitude nao contamina a medida. O filtro descarta caixas vizinhas que se encostam e animais na borda do quadro. Quando o detector junta dois animais em uma única caixa, confira o frame de revisão antes de calibrar o peso.
 
 **A medida e da caixa envolvente, da cauda ao focinho** -- nao e
 comprimento corporal no sentido zootecnico. Para estimar peso, calibre
