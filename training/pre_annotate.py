@@ -37,7 +37,7 @@ def resolve_pre_annotate_classes(model, explicit_classes=None):
         return resolve_class_ids(model, explicit_classes)
     names = getattr(model, "names", {}) or {}
     if isinstance(names, dict) and names.get(14) == "bird" and names.get(19) == "cow":
-        return list(ANIMAL_LIKE_COCO)
+        return resolve_class_ids(model, ANIMAL_LIKE_COCO)
     return resolve_class_ids(model)
 
 
@@ -60,8 +60,8 @@ def main():
     parser.add_argument("--imgsz", type=int, default=1280)
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--iou", type=float, default=0.45,
-                        help="limiar de NMS agnostico a classe para evitar caixas duplicadas "
-                             "(essencial em modelos end2end como YOLO26 ou multi-classe COCO)")
+                        help="limiar de IoU para suprimir caixas sobrepostas "
+                             "(1.0 preserva todas as caixas)")
     parser.add_argument("--images-dir", type=Path, default=DATASET / "images")
     parser.add_argument("--labels-dir", type=Path, default=DATASET / "labels")
     args = parser.parse_args()
@@ -110,7 +110,7 @@ def main():
         vazias += 1 if not linhas else 0
 
     print(f"Imagens processadas : {len(images)}")
-    print(f"Caixas-rascunho     : {total_boxes} ({suprimidas} duplicatas suprimidas por NMS)")
+    print(f"Caixas-rascunho     : {total_boxes} ({suprimidas} caixas sobrepostas suprimidas por NMS)")
     print(f"Media por imagem    : {total_boxes / len(images):.1f}")
     print(f"Imagens sem caixa   : {vazias}")
     print(f"\nRotulos em {args.labels_dir}")
