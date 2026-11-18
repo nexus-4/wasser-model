@@ -21,7 +21,7 @@ from ultralytics import YOLO
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from measure_cattle import escala_do_frame, medida_orientada, toca_borda, isolado
+from measure_cattle import escala_do_frame, medir_deteccao, toca_borda, isolado
 
 REPO = Path(__file__).resolve().parent.parent
 if str(REPO) not in sys.path:
@@ -76,7 +76,7 @@ def main():
 
             r = modelo.track(frame, persist=True, tracker=str(args.tracker),
                              classes=class_ids, device=device, imgsz=args.imgsz,
-                             conf=args.conf, verbose=False)[0]
+                             conf=args.conf, retina_masks=True, verbose=False)[0]
             if r.boxes is None or r.boxes.id is None:
                 continue
 
@@ -84,11 +84,11 @@ def main():
             caixas = [tuple(b) for b in r.boxes.xyxy.cpu().numpy()]
             ids = r.boxes.id.int().cpu().tolist()
 
-            for caixa, tid in zip(caixas, ids):
+            mascaras = r.masks.data if r.masks is not None else None
+            for indice, (caixa, tid) in enumerate(zip(caixas, ids)):
                 if toca_borda(caixa, larg, alt) or not isolado(caixa, caixas):
                     continue
-                x1, y1, x2, y2 = (int(v) for v in caixa)
-                orient = medida_orientada(frame[y1:y2, x1:x2])
+                orient = medir_deteccao(frame, caixa, mascaras, indice)
                 if orient is None:
                     continue
                 comp, largura_px = orient[0] * cm_px, orient[1] * cm_px

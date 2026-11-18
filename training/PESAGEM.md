@@ -75,3 +75,5 @@ comparaveis com tabelas de literatura.
 Vista de cima nao captura altura nem profundidade de costela, que sao boas
 preditoras de massa. Espere erro maior que uma balanca. O valor esta em
 estimar sem passar o animal no tronco, nao em substituir a pesagem oficial.
+
+Em `measure_cattle.py` e `weigh_session.py`, `--model yolo11x-seg.pt` usa a máscara de cada animal. Detectores que fornecem apenas caixas usam Otsu com a polaridade estimada pela borda. O CSV por frame registra o método. Use o mesmo peso do modelo e o mesmo método na calibração e no uso posterior.

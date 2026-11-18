@@ -35,17 +35,18 @@ def escala_do_frame(frame, detector, marker_cm):
     return marker_cm / float(np.median(lados))
 
 
-def medida_orientada(roi):
-    """Comprimento, largura e angulo do animal, via retangulo de area minima.
-
-    A caixa do detector e alinhada aos eixos: um animal na diagonal vira quase
-    quadrado (proporcao 1:1 em vez de 3.7:1) e a largura fica inutil.
-    """
+def medida_orientada(roi, mask=None):
+    """Mede o maior contorno da instancia ou estima o primeiro plano na ROI."""
     if roi.size == 0:
         return None
-    cinza = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
+    if mask is None:
+        cinza = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        _, mask = cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        # Em uma caixa justa, a borda costuma conter mais fundo que animal.
+        borda = np.concatenate((mask[0], mask[-1], mask[:, 0], mask[:, -1]))
+        if np.count_nonzero(borda) * 2 >= borda.size:
+            mask = cv2.bitwise_not(mask)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
     cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not cnts:
         return None
@@ -56,6 +57,16 @@ def medida_orientada(roi):
     if min(w, h) <= 0:
         return None
     return max(w, h), min(w, h), ang
+
+
+def medir_deteccao(frame, caixa, mascaras, indice):
+    x1, y1, x2, y2 = map(int, caixa)
+    roi = frame[y1:y2, x1:x2]
+    mask = None
+    if mascaras is not None:
+        # retina_masks=True garante as coordenadas do frame original.
+        mask = mascaras[indice, y1:y2, x1:x2].cpu().numpy().astype(np.uint8)
+    return medida_orientada(roi, mask)
 
 
 def toca_borda(caixa, largura, altura, margem=8):
@@ -121,13 +132,14 @@ def main():
                 continue
 
             r = modelo.predict(frame, imgsz=args.imgsz, conf=args.conf,
-                               classes=class_ids, device=device, verbose=False)[0]
+                               classes=class_ids, device=device, retina_masks=True, verbose=False)[0]
             if r.boxes is None or not len(r.boxes):
                 continue
 
             alt, larg = frame.shape[:2]
             caixas = [tuple(b) for b in r.boxes.xyxy.cpu().numpy()]
-            for caixa, cf in zip(caixas, r.boxes.conf.tolist()):
+            mascaras = r.masks.data if r.masks is not None else None
+            for indice, (caixa, cf) in enumerate(zip(caixas, r.boxes.conf.tolist())):
                 x1, y1, x2, y2 = caixa
                 if toca_borda(caixa, larg, alt):
                     cortados[0] += 1
@@ -136,7 +148,7 @@ def main():
                 if not so and not args.all:
                     continue
                 w, h = (x2 - x1) * cm_px, (y2 - y1) * cm_px
-                orient = medida_orientada(frame[int(y1):int(y2), int(x1):int(x2)])
+                orient = medir_deteccao(frame, caixa, mascaras, indice)
                 comp_o = larg_o = ang_o = razao = None
                 if orient is not None:
                     comp_o = round(orient[0] * cm_px, 1)
@@ -147,6 +159,7 @@ def main():
                     "frame": frame_no,
                     "conf": round(cf, 3),
                     "isolado": so,
+                    "metodo": "mascara" if mascaras is not None else "otsu",
                     "cm_por_px": round(cm_px, 5),
                     "comprimento_cm": comp_o,
                     "largura_cm": larg_o,
