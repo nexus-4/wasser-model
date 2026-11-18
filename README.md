@@ -190,6 +190,10 @@ Medido nos voos de 14/08/2026, com marcador de 50 cm:
 
 ### Medidas em centimetros
 
+Para pesagem por passagem com uma câmera RGB fixa sobre o corredor, use
+`training/weigh_passage.py`. A calibração usa uma foto da instalação e o CSV
+identifica as passagens para revisão. [Protocolo e comando de uso](training/PESAGEM.md).
+
 ```bash
 uv run python training/measure_cattle.py VIDEO.MP4 --marker-cm 50 -o medidas.csv
 ```

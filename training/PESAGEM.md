@@ -1,5 +1,40 @@
 # Sessao de pesagem: protocolo de campo
 
+## Câmera RGB fixa no corredor
+
+Grave em cores, de cima, com um animal por vez. Comece e termine com a área vazia.
+Salve uma foto do corredor vazio com um marcador ArUco `DICT_4X4_50` de lado conhecido.
+Use a mesma câmera, resolução, posição, orientação, zoom e recorte da gravação.
+A foto pode ser reutilizada em outras gravações dessa instalação. Se a montagem mudar,
+faça outra referência. O marcador pode ser retirado ou ficar oculto durante a passagem.
+A escala corresponde ao plano do marcador. Dimensões do dorso são aproximadas.
+
+```bash
+uv run python training/weigh_passage.py corredor.mp4 --referencia corredor_vazio.png --marker-cm 50 -o runs/sessao_01.csv
+```
+
+Substitua 50 pelo lado medido do quadrado preto em centímetros. Para analisar apenas
+o corredor, passe `--area X1 Y1 X2 Y2` em pixels da imagem original. Escolha uma área
+que comporte o animal inteiro. Cada sequência de ocupação detectada gera uma linha.
+O padrão separa passagens após cinco frames consecutivos sem detecção
+(`--intervalo-vazio`). Ajuste esse intervalo à taxa de quadros e ao espaço entre animais.
+Uma perda de detecção longa também pode dividir uma passagem. Dois animais que passam
+colados e recebem uma única caixa podem aparecer como uma só passagem.
+
+Confira as linhas contra o vídeo pelo `frame_revisao` (começa em 1). Em `revisar`,
+o campo `motivo` indica a ambiguidade. Só após confirmar uma passagem individual
+com medidas válidas, marque `status=ok` e associe o peso de balança e o brinco.
+O ajuste usa as linhas aprovadas com peso preenchido:
+
+```bash
+uv run python training/fit_weight.py runs/sessao_01.csv
+```
+
+Calibre e avalie com dados dessa câmera. Reserve outra sessão com balança para
+medir o erro em kg e registre quantos animais receberam medidas aceitas.
+
+## Coleta com drone
+
 Objetivo: coletar pares (medida do drone, peso da balanca) para ajustar uma
 curva de estimativa. **Sem esses pares nao existe estimativa de peso** -- a
 relacao entre dimensao e massa depende de raca, idade e condicao corporal, e

@@ -20,7 +20,7 @@ def carregar(caminho):
     por_animal = defaultdict(list)
     with Path(caminho).open(encoding="utf-8-sig", newline="") as fh:
         for linha, r in enumerate(csv.DictReader(fh), start=2):
-            if not r.get("peso_kg"):
+            if r.get("status", "ok") != "ok" or not r.get("peso_kg"):
                 continue
             try:
                 valores = [float(r[col]) for col in ("peso_kg", "comprimento_cm", "largura_cm")]
