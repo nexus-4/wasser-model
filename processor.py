@@ -1,4 +1,7 @@
 from pathlib import Path
+import shutil
+import subprocess
+import tempfile
 
 import cv2
 import numpy as np
@@ -220,6 +223,27 @@ def validate_processing_inputs(video_path, model_path, tracker_path):
 
     if missing:
         raise FileNotFoundError("Required files not found: " + "; ".join(missing))
+
+
+def prepare_browser_video(output_path):
+    """Converte para H.264, preservando o MP4 original se o encoder falhar."""
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return False
+    path = Path(output_path)
+    with tempfile.TemporaryDirectory(dir=path.parent) as folder:
+        encoded = Path(folder) / "preview.mp4"
+        try:
+            subprocess.run(
+                [ffmpeg, "-nostdin", "-loglevel", "error", "-i", str(path),
+                 "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                 "-movflags", "+faststart", str(encoded)],
+                check=True,
+            )
+            encoded.replace(path)
+        except (OSError, subprocess.CalledProcessError):
+            return False
+    return True
 
 
 def process_video(

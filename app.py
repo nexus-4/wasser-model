@@ -8,18 +8,13 @@ from processor import (
     DEFAULT_INFERENCE_SIZE,
     DEFAULT_MODEL_PATH,
     DEFAULT_TRACKER_PATH,
-    load_model,
+    prepare_browser_video,
     process_video,
     resolve_device,
 )
 
 
 st.set_page_config(page_title="Vigilio Monitor", layout="wide", initial_sidebar_state="collapsed")
-
-
-@st.cache_resource
-def get_cached_model(model_path):
-    return load_model(model_path)
 
 
 def save_uploaded_video(uploaded_file):
@@ -69,45 +64,6 @@ def validate_app_inputs(tracker_path):
 
 def render_html(markup):
     st.markdown(dedent(markup).strip(), unsafe_allow_html=True)
-
-
-def render_farm_placeholder():
-    render_html(
-        """
-        <div class="farm-view">
-            <div class="farm-sky"></div>
-            <div class="farm-field"></div>
-            <div class="farm-fence fence-a"></div>
-            <div class="farm-fence fence-b"></div>
-
-            <div class="cow cow-a">
-                <span class="bbox box-green"></span><span class="cow-body"></span><span class="cow-head"></span>
-            </div>
-            <div class="cow cow-b">
-                <span class="bbox box-green"></span><span class="cow-body"></span><span class="cow-head"></span>
-            </div>
-            <div class="cow cow-c">
-                <span class="bbox box-red"></span><span class="cow-body"></span><span class="cow-head"></span>
-            </div>
-            <div class="cow cow-d">
-                <span class="bbox box-green"></span><span class="cow-body"></span><span class="cow-head"></span>
-            </div>
-
-            <div class="detection-card">
-                <div class="detected-count">23 Animals Detected</div>
-                <div class="confidence-row"><span class="confidence-dot"></span>Confidence: 92%</div>
-            </div>
-
-            <div class="playback-bar">
-                <div class="playback-controls">
-                    <span class="play-icon"></span><span class="control-line"></span><span class="control-line short"></span>
-                </div>
-                <div class="video-progress"><span></span></div>
-                <div class="timestamp">01:24 / 04:10</div>
-            </div>
-        </div>
-        """
-    )
 
 
 def render_upload_notice():
@@ -190,42 +146,6 @@ render_html(
             color: var(--text);
         }
 
-        .processing-pill,
-        .sync-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #dfffea;
-            font-weight: 700;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--green);
-            box-shadow: 0 0 16px rgba(34, 240, 107, 0.9);
-        }
-
-        .header-icons {
-            display: flex;
-            gap: 0.6rem;
-        }
-
-        .header-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 44px;
-            height: 38px;
-            border: 1px solid rgba(127, 153, 190, 0.24);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            color: #dce7f7;
-            font-size: 0.78rem;
-            font-weight: 800;
-        }
-
         .st-key-left_panel,
         .st-key-right_panel {
             aspect-ratio: 1 / 1;
@@ -296,7 +216,6 @@ render_html(
             display: none;
         }
 
-        .farm-view,
         .map-view {
             position: relative;
             width: 100%;
@@ -306,197 +225,6 @@ render_html(
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.12);
             background: #111927;
-        }
-
-        .farm-sky {
-            position: absolute;
-            inset: 0 0 45% 0;
-            background:
-                radial-gradient(circle at 72% 22%, rgba(255, 255, 255, 0.65), transparent 8%),
-                linear-gradient(180deg, #253b55 0%, #142536 100%);
-        }
-
-        .farm-field {
-            position: absolute;
-            inset: 38% 0 0 0;
-            background:
-                linear-gradient(12deg, rgba(22, 240, 107, 0.08) 0 10%, transparent 10% 18%, rgba(35, 135, 255, 0.08) 18% 25%, transparent 25%),
-                linear-gradient(180deg, #20391f 0%, #102410 100%);
-        }
-
-        .farm-fence {
-            position: absolute;
-            left: -8%;
-            width: 116%;
-            height: 2px;
-            background: rgba(230, 236, 245, 0.5);
-            transform: rotate(-4deg);
-        }
-
-        .fence-a { top: 49%; }
-        .fence-b { top: 55%; }
-
-        .cow {
-            position: absolute;
-            width: 118px;
-            height: 70px;
-        }
-
-        .cow-a { left: 13%; top: 48%; transform: scale(1.05); }
-        .cow-b { left: 53%; top: 43%; transform: scale(0.96); }
-        .cow-c { left: 68%; top: 65%; transform: scale(1.08); }
-        .cow-d { left: 27%; top: 67%; transform: scale(0.9); }
-
-        .cow-body {
-            position: absolute;
-            left: 22px;
-            top: 22px;
-            width: 72px;
-            height: 36px;
-            border-radius: 48% 42% 45% 45%;
-            background:
-                radial-gradient(circle at 28% 42%, #171717 0 14%, transparent 15%),
-                radial-gradient(circle at 67% 45%, #1b1b1b 0 12%, transparent 13%),
-                #f3f0e8;
-        }
-
-        .cow-head {
-            position: absolute;
-            left: 88px;
-            top: 18px;
-            width: 26px;
-            height: 28px;
-            border-radius: 50%;
-            background: #eee8dc;
-        }
-
-        .cow-body:before,
-        .cow-body:after {
-            content: "";
-            position: absolute;
-            bottom: -18px;
-            width: 7px;
-            height: 18px;
-            border-radius: 4px;
-            background: #e5dfd4;
-        }
-
-        .cow-body:before { left: 15px; }
-        .cow-body:after { right: 14px; }
-
-        .bbox {
-            position: absolute;
-            inset: 8px 0 0 8px;
-            border-radius: 4px;
-            z-index: 3;
-        }
-
-        .box-green {
-            border: 2px solid var(--green);
-            box-shadow: 0 0 14px rgba(34, 240, 107, 0.75);
-        }
-
-        .box-red {
-            border: 2px solid var(--red);
-            box-shadow: 0 0 14px rgba(255, 56, 92, 0.75);
-        }
-
-        .detection-card {
-            position: absolute;
-            top: 24px;
-            left: 24px;
-            min-width: 260px;
-            padding: 1rem 1.1rem;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            border-radius: 8px;
-            background: rgba(5, 10, 18, 0.72);
-            box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
-            backdrop-filter: blur(14px);
-        }
-
-        .detected-count {
-            font-size: 1.55rem;
-            line-height: 1.2;
-            font-weight: 900;
-            color: #ffffff;
-        }
-
-        .confidence-row {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-            color: #d9ffe5;
-            font-weight: 700;
-        }
-
-        .confidence-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: var(--green);
-            box-shadow: 0 0 12px rgba(34, 240, 107, 0.9);
-        }
-
-        .playback-bar {
-            position: absolute;
-            left: 20px;
-            right: 20px;
-            bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 0.9rem;
-            padding: 0.75rem 0.9rem;
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 8px;
-            background: rgba(3, 8, 15, 0.78);
-            backdrop-filter: blur(14px);
-        }
-
-        .playback-controls {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 96px;
-        }
-
-        .play-icon {
-            width: 0;
-            height: 0;
-            border-top: 8px solid transparent;
-            border-bottom: 8px solid transparent;
-            border-left: 13px solid #ffffff;
-        }
-
-        .control-line {
-            width: 24px;
-            height: 6px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.55);
-        }
-
-        .control-line.short { width: 14px; }
-
-        .video-progress {
-            flex: 1;
-            height: 8px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.18);
-            overflow: hidden;
-        }
-
-        .video-progress span {
-            display: block;
-            width: 44%;
-            height: 100%;
-            border-radius: 8px;
-            background: linear-gradient(90deg, var(--blue), var(--green));
-        }
-
-        .timestamp {
-            color: #dce7f7;
-            font-size: 0.82rem;
-            font-weight: 700;
         }
 
         .map-view {
@@ -543,59 +271,6 @@ render_html(
             z-index: 5;
         }
 
-        .map-road {
-            position: absolute;
-            z-index: 1;
-            height: 8px;
-            border-radius: 999px;
-            background: rgba(194, 205, 218, 0.16);
-            transform-origin: left center;
-        }
-
-        .road-a { width: 82%; left: 5%; top: 34%; transform: rotate(18deg); }
-        .road-b { width: 72%; left: 10%; top: 64%; transform: rotate(-21deg); }
-        .road-c { width: 55%; left: 38%; top: 50%; transform: rotate(66deg); }
-
-        .heat {
-            position: absolute;
-            z-index: 2;
-            border-radius: 50%;
-            filter: blur(16px);
-            opacity: 0.86;
-        }
-
-        .heat-a { width: 220px; height: 220px; left: 18%; top: 26%; background: rgba(35, 135, 255, 0.72); }
-        .heat-b { width: 250px; height: 250px; left: 45%; top: 35%; background: rgba(34, 240, 107, 0.48); }
-        .heat-c { width: 230px; height: 230px; left: 42%; top: 50%; background: rgba(255, 202, 40, 0.5); }
-        .heat-d { width: 170px; height: 170px; left: 51%; top: 57%; background: rgba(255, 56, 92, 0.72); }
-
-        .map-pin {
-            position: absolute;
-            z-index: 4;
-            width: 14px;
-            height: 14px;
-            border: 3px solid #ffffff;
-            border-radius: 50%;
-            background: var(--green);
-            box-shadow: 0 0 16px rgba(34, 240, 107, 0.9);
-        }
-
-        .pin-a { left: 42%; top: 43%; }
-        .pin-b { left: 58%; top: 62%; background: var(--red); box-shadow: 0 0 16px rgba(255, 56, 92, 0.9); }
-
-        .map-label {
-            position: absolute;
-            right: 24px;
-            bottom: 24px;
-            z-index: 5;
-            padding: 0.65rem 0.9rem;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 8px;
-            background: rgba(5, 10, 18, 0.72);
-            color: #dce7f7;
-            font-weight: 800;
-        }
-
         .st-key-bottom_toolbar {
             margin-top: 1rem;
             min-height: 84px;
@@ -628,17 +303,6 @@ render_html(
             display: none;
         }
 
-        .sync-check {
-            display: inline-block;
-            width: 18px;
-            height: 18px;
-            border-right: 4px solid var(--green);
-            border-bottom: 4px solid var(--green);
-            transform: rotate(45deg);
-            margin-left: 0.3rem;
-            filter: drop-shadow(0 0 8px rgba(34, 240, 107, 0.8));
-        }
-
         .stButton > button {
             border-radius: 8px;
             border: 1px solid rgba(83, 139, 255, 0.55);
@@ -665,9 +329,6 @@ if "heatmap_path" not in st.session_state:
     st.session_state.heatmap_path = None
 if "detected_count" not in st.session_state:
     st.session_state.detected_count = 0
-if "status_label" not in st.session_state:
-    st.session_state.status_label = "Processing"
-
 with st.sidebar:
     st.header("Technical Configuration")
     model_path = st.text_input("YOLO model", value=DEFAULT_MODEL_PATH)
@@ -704,12 +365,6 @@ render_html(
     <div class="top-header">
         <div class="brand-wrap">
             <div class="brand-title">Vigilio Monitor</div>
-            <div class="processing-pill"><span class="status-dot"></span><span>Processing</span></div>
-        </div>
-        <div class="header-icons">
-            <span class="header-icon">SET</span>
-            <span class="header-icon">NET</span>
-            <span class="header-icon">ALR</span>
         </div>
     </div>
     """
@@ -723,7 +378,10 @@ with left_col:
         left_view = st.empty()
         with left_view.container():
             if st.session_state.processed_video_path:
-                st.video(st.session_state.processed_video_path)
+                if st.session_state.get("browser_video_ready", False):
+                    st.video(st.session_state.processed_video_path)
+                else:
+                    st.info("Browser preview unavailable. Download the processed video below.")
             else:
                 with st.container(key="video_upload_zone"):
                     render_upload_notice()
@@ -744,10 +402,11 @@ with right_col:
                 render_heatmap_placeholder()
 
 with st.container(key="bottom_toolbar"):
-    total_col, upload_col, filter_col, export_col, sync_col = st.columns([1.25, 1.55, 1.1, 1.1, 1.1])
+    total_col, upload_col, export_col = st.columns([1.25, 2, 1])
 
     with total_col:
-        st.metric("Total Detected", f"{st.session_state.detected_count} Animals")
+        count_metric = st.empty()
+        count_metric.metric("Animals detected", st.session_state.detected_count)
 
     with upload_col:
         toolbar_uploaded_video = st.file_uploader(
@@ -757,29 +416,10 @@ with st.container(key="bottom_toolbar"):
             key="toolbar_video_source",
         )
 
-    with filter_col:
-        st.selectbox(
-            "Time filter",
-            options=("Last 15 Minutes", "Last 30 Minutes", "Last 2 Hours"),
-            index=2,
-            label_visibility="collapsed",
-        )
-
     uploaded_video = toolbar_uploaded_video or drop_uploaded_video
 
     with export_col:
         process_clicked = st.button("Export Video", type="primary", disabled=uploaded_video is None)
-
-    with sync_col:
-        render_html(
-            """
-            <div class="sync-pill">
-                <span class="status-dot"></span>
-                <span>Synchronized</span>
-                <span class="sync-check"></span>
-            </div>
-            """
-        )
 
 progress_placeholder = st.empty()
 message_placeholder = st.empty()
@@ -801,21 +441,16 @@ if process_clicked and uploaded_video is not None:
             message_placeholder.error(message)
         st.stop()
 
-    st.session_state.status_label = "Processing"
-    discard_previous_results()
     progress_bar = progress_placeholder.progress(0)
     input_path = save_uploaded_video(uploaded_video)
     output_path = create_output_path()
     heatmap_path = create_heatmap_output_path()
-    preview_state = {"frames": 0}
 
     def update_progress(value):
         progress_bar.progress(value)
 
     def update_preview(frame, display_count, heatmap_frame):
-        preview_state["frames"] += 1
-
-        st.session_state.detected_count = display_count
+        count_metric.metric("Animals detected", display_count)
         rgb_frame = frame[:, :, ::-1]
         rgb_heatmap = heatmap_frame[:, :, ::-1]
         with left_view.container():
@@ -824,13 +459,11 @@ if process_clicked and uploaded_video is not None:
             st.image(rgb_heatmap, channels="RGB", use_container_width=True)
 
     try:
-        model = get_cached_model(model_path)
         result = process_video(
             video_path=input_path,
             output_path=output_path,
             model_path=model_path,
             tracker_path=tracker_path,
-            model=model,
             counter_mode=counter_mode,
             show_window=False,
             progress_callback=update_progress,
@@ -839,8 +472,9 @@ if process_clicked and uploaded_video is not None:
             imgsz=inference_size,
             device=device,
         )
+        progress_placeholder.caption("Preparing video for playback…")
+        browser_video_ready = prepare_browser_video(output_path)
     except Exception as exc:
-        st.session_state.status_label = "Error"
         discard_temp_file(output_path)
         discard_temp_file(heatmap_path)
         message_placeholder.error(f"Processing error: {exc}")
@@ -850,10 +484,11 @@ if process_clicked and uploaded_video is not None:
         # ao rerun do Streamlit.
         discard_temp_file(input_path)
 
+    discard_previous_results()
+    st.session_state.browser_video_ready = browser_video_ready
     st.session_state.processed_video_path = output_path
     st.session_state.heatmap_path = result["heatmap_path"]
     st.session_state.detected_count = (
         result["total_unique"] if counter_mode == "acumulado" else result["last_frame_count"]
     )
-    progress_bar.progress(1.0)
     st.rerun()
