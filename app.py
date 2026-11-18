@@ -7,6 +7,8 @@ import streamlit as st
 from processor import (
     DEFAULT_INFERENCE_SIZE,
     DEFAULT_MODEL_PATH,
+    PASTURE_MODEL_PATH,
+    PASTURE_INFERENCE_SIZE,
     DEFAULT_TRACKER_PATH,
     prepare_browser_video,
     process_video,
@@ -57,7 +59,7 @@ def discard_previous_results():
 
 def validate_app_inputs(tracker_path):
     missing = []
-    if not Path(tracker_path).exists():
+    if tracker_path is not None and not Path(tracker_path).exists():
         missing.append(f"Tracker not found: {tracker_path}")
     return missing
 
@@ -331,20 +333,17 @@ if "detected_count" not in st.session_state:
     st.session_state.detected_count = 0
 with st.sidebar:
     st.header("Technical Configuration")
-    model_path = st.text_input("YOLO model", value=DEFAULT_MODEL_PATH)
-    tracker_path = st.text_input("BoT-SORT tracker", value=DEFAULT_TRACKER_PATH)
-    inference_size = st.selectbox(
-        "Inference size",
-        options=(416, 512, 640, 960, 1280),
-        index=(416, 512, 640, 960, 1280).index(DEFAULT_INFERENCE_SIZE),
-        help="Lower values process faster. The exported video keeps the original resolution.",
-    )
-    counter_mode_label = st.radio(
-        "Counter mode",
-        options=("Accumulated total", "Current frame"),
-        index=0,
-    )
-    counter_mode = "acumulado" if counter_mode_label == "Accumulated total" else "frame"
+    modes = {"Accumulated total": "acumulado", "Current frame": "frame",
+             "Drone pasture (per frame)": "pasto"}
+    counter_mode = modes[st.radio("Counter mode", options=list(modes))]
+    pasture = counter_mode == "pasto"
+    model_path = st.text_input("YOLO model", value=PASTURE_MODEL_PATH if pasture else DEFAULT_MODEL_PATH,
+                               key="pasture_model" if pasture else "tracking_model")
+    tracker_path = None if pasture else st.text_input("BoT-SORT tracker", value=DEFAULT_TRACKER_PATH)
+    sizes = (416, 512, 640, 960, 1280)
+    inference_size = st.selectbox("Inference size", options=sizes,
+                                  index=sizes.index(PASTURE_INFERENCE_SIZE if pasture else DEFAULT_INFERENCE_SIZE),
+                                  key="pasture_size" if pasture else "tracking_size")
 
     device_label = st.radio(
         "Processing device",

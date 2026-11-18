@@ -8,6 +8,8 @@ import numpy as np
 from ultralytics import YOLO
 
 
+PASTURE_MODEL_PATH = "runs/pasto-v1/weights/best.pt"
+PASTURE_INFERENCE_SIZE = 416
 DEFAULT_MODEL_PATH = "yolo26x.pt"
 DEFAULT_VIDEO_PATH = "videos/YTDown.com_Shorts_Video-por-drone-mostra-como-o-gado-se-mo_Media_0dqOtU8HJqg_001_720p.mp4"
 DEFAULT_TRACKER_PATH = "wasser_tracker.yaml"
@@ -157,15 +159,25 @@ def draw_legend(frame):
 
 
 def draw_counter(frame, count, mode="acumulado"):
+    if mode == "pasto":
+        text = f"Visible: {count}"
+        cv2.putText(frame, text, (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 5, cv2.LINE_AA)
+        cv2.putText(frame, text, (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+        return
     label = "Total Detected" if mode == "acumulado" else "Current Frame"
     cv2.rectangle(frame, (10, 10), (410, 62), (0, 0, 0), -1)
     cv2.putText(frame, f"{label}: {count}", (20, 47), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 3)
 
 
 def draw_detection(frame, box_xyxy, track_id, conf, cattle_names=None):
+    x1, y1, x2, y2 = map(int, box_xyxy)
+    if track_id is None:
+        center = ((x1 + x2) // 2, (y1 + y2) // 2)
+        cv2.circle(frame, center, 5, (15, 15, 15), -1, cv2.LINE_AA)
+        cv2.circle(frame, center, 3, (70, 245, 150), -1, cv2.LINE_AA)
+        return
     cattle_names = cattle_names or DEFAULT_CATTLE_NAMES
     color, status = get_color_and_status(float(conf))
-    x1, y1, x2, y2 = map(int, box_xyxy)
     name = cattle_names.get(track_id, f"Cattle {track_id}")
 
     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
@@ -211,7 +223,7 @@ def save_activity_heatmap(heatmap_accum, background_frame, output_heatmap_path):
 def validate_processing_inputs(video_path, model_path, tracker_path):
     missing = []
     for label, path in (("video", video_path), ("tracker", tracker_path)):
-        if not Path(path).exists():
+        if path is not None and not Path(path).exists():
             missing.append(f"{label}: {path}")
 
     # Nome simples (ex.: "yolo26x.pt") fica a cargo do download automatico do
@@ -246,10 +258,32 @@ def prepare_browser_video(output_path):
     return True
 
 
+def pasture_detections(model, frame, *, classes, imgsz, device):
+    """One box per visible candidate, including detections without a track ID."""
+    from torchvision.ops import nms
+
+    boxes = model.predict(frame, classes=classes, imgsz=imgsz, device=device,
+                          conf=0.10, verbose=False)[0].boxes
+    if boxes is None or not len(boxes):
+        return []
+    keep = nms(boxes.xyxy, boxes.conf, 0.45)
+    return [(xyxy, None, conf) for xyxy, conf in
+            zip(boxes.xyxy[keep].cpu().numpy(), boxes.conf[keep].cpu().tolist())]
+
+
+def tracked_detections(model, frame, tracker, *, classes, imgsz, device):
+    boxes = model.track(frame, persist=True, tracker=tracker, classes=classes,
+                        imgsz=imgsz, device=device, verbose=False)[0].boxes
+    if boxes is None or boxes.id is None:
+        return []
+    return list(zip(boxes.xyxy.cpu().numpy(), boxes.id.int().cpu().tolist(),
+                    boxes.conf.cpu().tolist()))
+
+
 def process_video(
     video_path=DEFAULT_VIDEO_PATH,
     output_path=DEFAULT_OUTPUT_PATH,
-    model_path=DEFAULT_MODEL_PATH,
+    model_path=None,
     tracker_path=DEFAULT_TRACKER_PATH,
     model=None,
     counter_mode="acumulado",
@@ -257,13 +291,18 @@ def process_video(
     progress_callback=None,
     preview_callback=None,
     output_heatmap_path=None,
-    imgsz=DEFAULT_INFERENCE_SIZE,
+    imgsz=None,
     preview_interval=5,
     class_ids=None,
     device=None,
 ):
     device = resolve_device(device)
-    validate_processing_inputs(video_path, model_path, tracker_path)
+    pasture = counter_mode == "pasto"
+    if model_path is None:
+        model_path = PASTURE_MODEL_PATH if pasture else DEFAULT_MODEL_PATH
+    if imgsz is None:
+        imgsz = PASTURE_INFERENCE_SIZE if pasture else DEFAULT_INFERENCE_SIZE
+    validate_processing_inputs(video_path, model_path, None if pasture else tracker_path)
 
     model = model or load_model(model_path)
     class_ids = resolve_class_ids(model, class_ids)
@@ -299,35 +338,21 @@ def process_video(
             if heatmap_background is None:
                 heatmap_background = frame.copy()
 
-            results = model.track(
-                frame,
-                persist=True,
-                tracker=tracker_path,
-                classes=class_ids,
-                imgsz=imgsz,
-                device=device,
-                verbose=False,
-            )
-
+            if pasture:
+                detections = pasture_detections(model, frame, classes=class_ids, imgsz=imgsz, device=device)
+            else:
+                detections = tracked_detections(model, frame, tracker_path, classes=class_ids, imgsz=imgsz, device=device)
             annotated_frame = frame.copy()
-            frame_track_ids = []
-            result = results[0]
-
-            if result.boxes is not None and result.boxes.id is not None:
-                boxes_xyxy = result.boxes.xyxy.cpu().numpy()
-                track_ids = result.boxes.id.int().cpu().tolist()
-                confs = result.boxes.conf.cpu().numpy()
-                frame_track_ids = track_ids
-
-                for box_xyxy, track_id, conf in zip(boxes_xyxy, track_ids, confs):
+            for box, track_id, conf in detections:
+                if track_id is not None:
                     counted_ids.add(track_id)
-                    add_detection_to_heatmap(heatmap_accum, box_xyxy)
-                    draw_detection(annotated_frame, box_xyxy, track_id, conf)
-
-            last_frame_count = len(frame_track_ids)
+                add_detection_to_heatmap(heatmap_accum, box)
+                draw_detection(annotated_frame, box, track_id, conf)
+            last_frame_count = len(detections)
             display_count = len(counted_ids) if counter_mode == "acumulado" else last_frame_count
             draw_counter(annotated_frame, display_count, counter_mode)
-            draw_legend(annotated_frame)
+            if not pasture:
+                draw_legend(annotated_frame)
             out.write(annotated_frame)
 
             frames_processed += 1
@@ -352,7 +377,7 @@ def process_video(
     return {
         "output_path": output_path,
         "heatmap_path": str(output_heatmap_path),
-        "total_unique": len(counted_ids),
+        "total_unique": None if pasture else len(counted_ids),
         "last_frame_count": last_frame_count,
         "frames_processed": frames_processed,
         "class_ids": class_ids,

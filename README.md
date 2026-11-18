@@ -205,6 +205,29 @@ altitude nao contamina a medida. O filtro descarta caixas vizinhas que se encost
 comprimento corporal no sentido zootecnico. Para estimar peso, calibre
 contra balanca usando o mesmo criterio nas duas pontas.
 
+### Contagem aérea no pasto por quadro
+
+No Streamlit, em **Counter mode**, escolha **Drone pasture (per frame)**.
+Na CLI, use:
+
+```bash
+uv run python main.py --pasto --headless --video voo.mp4 --output resultado_voo.mp4
+```
+
+O perfil usa o detector treinado `runs/pasto-v1/weights/best.pt`, resolução de
+inferência 416, confiança mínima 0,10 e supressão de caixas sobrepostas com IoU
+0,45. Os pesos ficam fora do Git; selecione o caminho do seu detector de gado
+no campo **YOLO model** ou com `--model`. O número no vídeo é a quantidade
+visível naquele quadro. Um animal pode reaparecer em outra faixa do voo.
+
+Para reproduzir a comparação, rode `uv run python training/eval_pasture_count.py`.
+O script usa quatro quadros do vídeo de pasto incluído no projeto, com centros
+marcados visualmente na região x=30..690 e y=80..565. A inferência recebe o quadro
+inteiro. Dentro da região, cada caixa pode corresponder a um centro e vice-versa.
+A referência compara a saída bruta do mesmo detector (640, confiança 0,25) com
+o perfil de pasto. O quadro 170 foi reservado para conferência após escolher os
+parâmetros nos quadros 0, 300 e 900. A generalização precisa de outros voos.
+
 ### Contagem por cruzamento de linha
 
 ```bash
