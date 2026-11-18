@@ -64,9 +64,8 @@ frames vizinhos nao vazarem do treino para a validacao e inflarem a metrica.
 
 Os pesos saem em `runs/<name>/weights/best.pt`. Para usar:
 
-1. Aponte `DEFAULT_MODEL_PATH` em `processor.py` para esse arquivo.
-2. Passe `class_ids=[CATTLE_CLASS_ID]` em `process_video()` — o modelo
-   fine-tunado tem uma classe so, indice 0, nao a 19 do COCO.
+1. Passe `--model runs/<name>/weights/best.pt` nos scripts (`measure_cattle.py`, `weigh_session.py`, `line_count.py`, `pre_annotate.py`), na interface web ou aponte `DEFAULT_MODEL_PATH` em `processor.py`.
+2. `resolve_class_ids()` detecta automaticamente `classes=[0]` em modelos fine-tunados e `classes=[19]` no COCO (voce so precisa passar `--classes` se quiser forcar outro filtro).
 3. Considere `imgsz=1280`; o padrao 640 perde animal pequeno.
 
 O ReID do tracker (`model:` em `wasser_tracker.yaml`) continua usando os
@@ -106,9 +105,10 @@ Medindo o tamanho do gado nos dois conjuntos:
 | nosso video | 43,5 px | 6,03% |
 
 O dataset publico foi filmado de **muito mais alto**: o gado aparece ~4,6x
-menor. Por isso o `train.py` usa `--scale 0.9` por padrao, bem acima do
-0.5 usual -- sem escala agressiva o modelo aprende so o objeto minusculo e
-nao generaliza para a nossa altitude.
+menor (~9 px). Nao tente compensar subindo `--scale` demais (ex.: `0.9`):
+encolher 0.1x reduz um objeto de 9 px a menos de 1 px e destroi a amostra no
+treino. Por isso `train.py` mantem `--scale 0.5` e resolve a diferenca de
+altitude na etapa 2 do fine-tune, somando frames na altitude real de voo.
 
 ### Limite de dominio: raca
 

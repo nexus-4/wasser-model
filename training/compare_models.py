@@ -7,12 +7,17 @@ Uso:
     uv run python training/compare_models.py --finetuned runs/aerialcows-v2/weights/best.pt
 """
 import argparse
+import sys
 from pathlib import Path
 
 import cv2
 from ultralytics import YOLO
 
 REPO = Path(__file__).resolve().parent.parent
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+from processor import resolve_class_ids, resolve_device
+
 VIDEO = REPO / "videos" / "YTDown.com_Shorts_Video-por-drone-mostra-como-o-gado-se-mo_Media_0dqOtU8HJqg_001_720p.mp4"
 
 
@@ -41,6 +46,8 @@ def main():
     parser.add_argument("--frame", type=int, default=300)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--conf", type=float, default=0.25)
+    parser.add_argument("--device", default=None,
+                        help="cuda / mps / cpu (padrao: detecta automaticamente)")
     parser.add_argument("--out", type=Path, default=REPO / "runs" / "comparacao.jpg")
     args = parser.parse_args()
 
@@ -54,14 +61,18 @@ def main():
     if not ok:
         raise SystemExit(f"Nao consegui ler o frame {args.frame}")
 
-    # Generico: classe 19 = "cow" no COCO, que e o que o projeto usa hoje.
+    device = resolve_device(args.device)
     gen = YOLO(args.generico)
-    r_gen = gen.predict(frame, imgsz=args.imgsz, conf=args.conf, classes=[19], verbose=False)[0]
-    img_gen, n_gen = desenhar(frame, r_gen, "COCO classes=[19]", (0, 165, 255))
+    gen_classes = resolve_class_ids(gen)
+    r_gen = gen.predict(frame, imgsz=args.imgsz, conf=args.conf,
+                        classes=gen_classes, device=device, verbose=False)[0]
+    img_gen, n_gen = desenhar(frame, r_gen, f"Generico classes={gen_classes}", (0, 165, 255))
 
     ft = YOLO(str(args.finetuned))
-    r_ft = ft.predict(frame, imgsz=args.imgsz, conf=args.conf, verbose=False)[0]
-    img_ft, n_ft = desenhar(frame, r_ft, "fine-tune aerial-cows", (0, 255, 0))
+    ft_classes = resolve_class_ids(ft)
+    r_ft = ft.predict(frame, imgsz=args.imgsz, conf=args.conf,
+                      classes=ft_classes, device=device, verbose=False)[0]
+    img_ft, n_ft = desenhar(frame, r_ft, f"Fine-tune classes={ft_classes}", (0, 255, 0))
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(args.out), cv2.hconcat([img_gen, img_ft]))

@@ -11,13 +11,17 @@ Uso:
     uv run python training/line_count.py VIDEO.MP4 --line 0,0.6,1,0.6 --save-video saida.mp4
 """
 import argparse
+import sys
 from pathlib import Path
 
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
-COW_CLASS_ID = 19
+REPO = Path(__file__).resolve().parent.parent
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+from processor import resolve_class_ids, resolve_device
 
 
 def distancia_com_sinal(ponto, a, b):
@@ -42,7 +46,11 @@ def main():
     parser.add_argument("--line", default="0.5,0,0.5,1",
                         help="x1,y1,x2,y2 em fracao do quadro (0..1)")
     parser.add_argument("--model", default="yolo26x.pt")
-    parser.add_argument("--tracker", default="wasser_tracker.yaml")
+    parser.add_argument("--classes", default=None,
+                        help="IDs de classe separados por virgula (padrao: auto pelo modelo)")
+    parser.add_argument("--device", default=None,
+                        help="cuda / mps / cpu (padrao: detecta automaticamente)")
+    parser.add_argument("--tracker", type=Path, default=REPO / "wasser_tracker.yaml")
     parser.add_argument("--imgsz", type=int, default=1280)
     parser.add_argument("--conf", type=float, default=0.4)
     parser.add_argument("--deadzone", type=float, default=0.04,
@@ -53,7 +61,9 @@ def main():
     args = parser.parse_args()
 
     fx1, fy1, fx2, fy2 = (float(v) for v in args.line.split(","))
+    device = resolve_device(args.device)
     modelo = YOLO(args.model)
+    class_ids = resolve_class_ids(modelo, args.classes)
     video = cv2.VideoCapture(str(args.video))
     if not video.isOpened():
         raise SystemExit(f"Nao consegui abrir: {args.video}")
@@ -82,8 +92,8 @@ def main():
                 break
             frame_no += 1
 
-            r = modelo.track(frame, persist=True, tracker=args.tracker,
-                             classes=[COW_CLASS_ID], imgsz=args.imgsz,
+            r = modelo.track(frame, persist=True, tracker=str(args.tracker),
+                             classes=class_ids, device=device, imgsz=args.imgsz,
                              conf=args.conf, verbose=False)[0]
 
             if r.boxes is not None and r.boxes.id is not None:

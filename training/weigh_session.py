@@ -24,8 +24,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from measure_cattle import escala_do_frame, medida_orientada, toca_borda, isolado
 
 REPO = Path(__file__).resolve().parent.parent
-
-COW_CLASS_ID = 19
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+from processor import resolve_class_ids, resolve_device
 
 
 def main():
@@ -33,6 +34,10 @@ def main():
     parser.add_argument("video", type=Path)
     parser.add_argument("--marker-cm", type=float, required=True)
     parser.add_argument("--model", default="yolo26x.pt")
+    parser.add_argument("--classes", default=None,
+                        help="IDs de classe separados por virgula (padrao: auto pelo modelo)")
+    parser.add_argument("--device", default=None,
+                        help="cuda / mps / cpu (padrao: detecta automaticamente)")
     parser.add_argument("--tracker", type=Path,
                         default=REPO / "wasser_tracker.yaml")
     parser.add_argument("--imgsz", type=int, default=1280)
@@ -45,11 +50,13 @@ def main():
     parser.add_argument("-o", "--out", type=Path, default=Path("runs/sessao_pesagem.csv"))
     args = parser.parse_args()
 
+    device = resolve_device(args.device)
     detector = cv2.aruco.ArucoDetector(
         cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50),
         cv2.aruco.DetectorParameters(),
     )
     modelo = YOLO(args.model)
+    class_ids = resolve_class_ids(modelo, args.classes)
     video = cv2.VideoCapture(str(args.video))
     if not video.isOpened():
         raise SystemExit(f"Nao consegui abrir: {args.video}")
@@ -68,7 +75,7 @@ def main():
                 continue
 
             r = modelo.track(frame, persist=True, tracker=str(args.tracker),
-                             classes=[COW_CLASS_ID], imgsz=args.imgsz,
+                             classes=class_ids, device=device, imgsz=args.imgsz,
                              conf=args.conf, verbose=False)[0]
             if r.boxes is None or r.boxes.id is None:
                 continue

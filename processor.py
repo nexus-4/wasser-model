@@ -14,6 +14,91 @@ COW_CLASS_ID = 19  # indice "cow" no COCO, usado pelos pesos genericos
 CATTLE_CLASS_ID = 0  # indice unico dos pesos fine-tunados (ver training/)
 DEFAULT_CLASS_IDS = [COW_CLASS_ID]
 
+BOVINE_CLASS_LABELS = frozenset({
+    "cow",
+    "cows",
+    "cattle",
+    "bovine",
+    "ox",
+    "bull",
+    "calf",
+    "heifer",
+    "steer",
+    "gado",
+    "boi",
+    "vaca",
+    "bezerro",
+    "novilho",
+    "nelore",
+})
+
+
+def parse_class_ids(raw):
+    """Converte string '0' ou '14,19' (ou iteravel) em lista de ints; None preserva auto."""
+    if raw is None or raw == "":
+        return None
+    if isinstance(raw, str):
+        parts = [p.strip() for p in raw.split(",") if p.strip()]
+        return [int(p) for p in parts] if parts else None
+    return [int(v) for v in raw]
+
+
+def _normalize_model_names(model):
+    names = getattr(model, "names", None)
+    if isinstance(names, dict):
+        return {int(k): str(v) for k, v in names.items()}
+    if isinstance(names, (list, tuple)):
+        return {i: str(v) for i, v in enumerate(names)}
+    return {}
+
+
+def resolve_class_ids(model, class_ids=None):
+    """Determina os IDs de classe de gado a partir do vocabulario do modelo.
+
+    - Evita falha silenciosa (0 deteccoes) ao alternar entre pesos COCO
+      (`19: cow`) e pesos fine-tunados (`0: cattle` ou multiclasse).
+    - Rejeita modelos puramente classificadores (ex.: `yolo26x-cls.pt` do ReID).
+    - Valida IDs explicitos contra `model.names`.
+    """
+    if getattr(model, "task", None) == "classify":
+        raise ValueError(
+            "O modelo carregado e de classificacao (task='classify'), nao de deteccao. "
+            "Use um peso de deteccao/segmentacao (ex.: yolo26x.pt ou best.pt)."
+        )
+
+    names = _normalize_model_names(model)
+    explicit = parse_class_ids(class_ids)
+    if explicit is not None:
+        if names:
+            invalid = [cid for cid in explicit if cid not in names]
+            if invalid:
+                preview = ", ".join(f"{k}:{v}" for k, v in list(names.items())[:10])
+                suffix = " ..." if len(names) > 10 else ""
+                raise ValueError(
+                    f"class_ids {invalid} nao existem no modelo (classes disponiveis: {preview}{suffix})."
+                )
+        return explicit
+
+    if not names:
+        return list(DEFAULT_CLASS_IDS)
+
+    matched = sorted(
+        cid for cid, label in names.items()
+        if label.strip().lower() in BOVINE_CLASS_LABELS
+    )
+    if matched:
+        return matched
+
+    if len(names) == 1:
+        return [next(iter(names))]
+
+    preview = ", ".join(f"{k}:{v}" for k, v in list(names.items())[:10])
+    suffix = " ..." if len(names) > 10 else ""
+    raise ValueError(
+        f"Nenhuma classe bovina reconhecida no modelo ({preview}{suffix}). "
+        "Informe class_ids explicitamente."
+    )
+
 
 def resolve_device(device=None):
     """Escolhe o acelerador disponivel: CUDA (NVIDIA), MPS (Apple) ou CPU.
@@ -153,13 +238,11 @@ def process_video(
     class_ids=None,
     device=None,
 ):
-    # Pesos genericos (COCO) usam a classe 19; pesos fine-tunados em uma
-    # unica classe usam 0. Ver training/README.md.
-    class_ids = list(DEFAULT_CLASS_IDS if class_ids is None else class_ids)
     device = resolve_device(device)
     validate_processing_inputs(video_path, model_path, tracker_path)
 
     model = model or load_model(model_path)
+    class_ids = resolve_class_ids(model, class_ids)
     video = cv2.VideoCapture(str(video_path))
     if not video.isOpened():
         raise RuntimeError(f"Could not open video: {video_path}")
@@ -248,6 +331,7 @@ def process_video(
         "total_unique": len(counted_ids),
         "last_frame_count": last_frame_count,
         "frames_processed": frames_processed,
+        "class_ids": class_ids,
         "width": width,
         "height": height,
         "fps": fps,

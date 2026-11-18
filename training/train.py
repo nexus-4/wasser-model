@@ -4,8 +4,8 @@ Uso:
     uv run python training/train.py --epochs 100 --imgsz 1280
 
 Saida: runs/detect/<name>/weights/best.pt
-Aponte DEFAULT_MODEL_PATH (processor.py) para esse arquivo e passe
-class_ids=[CATTLE_CLASS_ID] em process_video().
+Aponte DEFAULT_MODEL_PATH (processor.py) ou --model nos scripts para esse arquivo
+(o ID de classe 0 = cattle e detectado automaticamente por resolve_class_ids).
 """
 import argparse
 import sys
@@ -100,8 +100,8 @@ def main():
     )
     pesos = Path(results.save_dir) / "weights" / "best.pt"
     print(f"\nTreino concluido. Pesos: {pesos}")
-    print("Para usar: aponte DEFAULT_MODEL_PATH em processor.py para esse arquivo")
-    print("e passe class_ids=[CATTLE_CLASS_ID] em process_video().")
+    print("Para usar: passe --model com esse caminho nos scripts ou aponte")
+    print("DEFAULT_MODEL_PATH em processor.py (a classe 0 e resolvida sozinha).")
 
 
 if __name__ == "__main__":
