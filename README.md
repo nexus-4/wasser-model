@@ -228,6 +228,29 @@ A referência compara a saída bruta do mesmo detector (640, confiança 0,25) co
 o perfil de pasto. O quadro 170 foi reservado para conferência após escolher os
 parâmetros nos quadros 0, 300 e 900. A generalização precisa de outros voos.
 
+### Inventário visual por trecho de voo
+
+Para acompanhar os animais ao longo de uma filmagem de pasto:
+
+```bash
+uv run python training/survey_count.py voo.mp4 -o runs/revisao_voo
+```
+
+Use uma nova pasta de saída. O comando divide o vídeo em cortes visuais, aplica
+o detector de pasto e associa as detecções com ByteTrack. Uma trajetória entra
+na estimativa após cinco observações (`--min-amostras`). O vídeo de cada trecho
+mostra os IDs, o acumulado e o número do frame no arquivo original (começa em 0).
+`trajetorias.csv` inclui também os IDs breves, com o primeiro e último frame e as
+coordenadas em pixels para revisão. `trechos.csv` aponta prováveis replays
+quando uma sequência visual se repete em ordem, inclusive em outra velocidade.
+
+No vídeo de exemplo de 1.086 frames, o trecho 0–362 gerou 89 trajetórias com o
+modelo local `pasto-v1`. Os frames 363–1085 repetem o trecho original em câmera
+lenta. Um animal claro aparece com ID 83 no frame 170 e ID 89 no frame 300.
+Essa troca explica uma duplicata. O total de animais do piquete depende ainda
+de revisar perdas e trocas de ID e de saber qual área o voo cobriu. Trechos
+diferentes podem mostrar o mesmo lote e são exportados separadamente.
+
 ### Contagem por cruzamento de linha
 
 ```bash

@@ -258,17 +258,23 @@ def prepare_browser_video(output_path):
     return True
 
 
-def pasture_detections(model, frame, *, classes, imgsz, device):
-    """One box per visible candidate, including detections without a track ID."""
+def pasture_boxes(model, frame, *, classes, imgsz, device):
+    """Detect pasture cattle and remove overlapping proposals before counting or tracking."""
     from torchvision.ops import nms
 
     boxes = model.predict(frame, classes=classes, imgsz=imgsz, device=device,
                           conf=0.10, verbose=False)[0].boxes
     if boxes is None or not len(boxes):
+        return boxes
+    return boxes[nms(boxes.xyxy, boxes.conf, 0.45)]
+
+
+def pasture_detections(model, frame, *, classes, imgsz, device):
+    boxes = pasture_boxes(model, frame, classes=classes, imgsz=imgsz, device=device)
+    if boxes is None:
         return []
-    keep = nms(boxes.xyxy, boxes.conf, 0.45)
     return [(xyxy, None, conf) for xyxy, conf in
-            zip(boxes.xyxy[keep].cpu().numpy(), boxes.conf[keep].cpu().tolist())]
+            zip(boxes.xyxy.cpu().numpy(), boxes.conf.cpu().tolist())]
 
 
 def tracked_detections(model, frame, tracker, *, classes, imgsz, device):
